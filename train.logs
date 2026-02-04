@@ -1,0 +1,45 @@
+CPU (batch_size: 4, num_workers: 16)
+2.14 
+1.49
+
+CPU (batch_size: 4, num_workers: 8)
+1.35 
+1.08 
+
+CPU (batch_size: 8, num_workers: 4)
+1.12
+0.47
+
+CPU (batch_size: 4, num_workers: 4)
+1.12
+0.46 
+
+CPU (batch_size: 4, num_workers: 2)
+1.02
+0.36 
+
+CPU (batch_size: 4, num_workers: 0)
+1.04
+0.37 
+
+
+
+GPU MPS (batch_size: 4, num_workers: 0) # not depend from batch_size, num_workers: 0
+0.47
+0.16
+
+GPU MPS (batch_size: 4, num_workers: 1) 
+0.43
+0.20
+
+GPU MPS (batch_size: 4, num_workers: 2) 
+0.48
+0.19
+
+GPU MPS (batch_size: 8, num_workers: 2) 
+0.49
+0.19
+
+GPU MPS (batch_size: 8, num_workers: 4) 
+0.59
+0.32
