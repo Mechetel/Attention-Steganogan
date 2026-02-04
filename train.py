@@ -6,6 +6,8 @@ Train a steganography model with tqdm progress bars and automatic metrics loggin
 """
 
 import os
+os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+
 import json
 from time import time
 import torch

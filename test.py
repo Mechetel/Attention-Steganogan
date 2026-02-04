@@ -6,6 +6,8 @@ Load a trained model and test encoding/decoding of secret messages in images.
 """
 
 import os
+os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+
 import argparse
 from models import SteganoGAN
 
