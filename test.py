@@ -9,7 +9,7 @@ import os
 os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
 
 import argparse
-from models import SteganoGAN
+from steganogan.steganogan import SteganoGAN
 
 
 def test_encode_decode(steganogan, input_image, output_image, message):

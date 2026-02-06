@@ -12,10 +12,10 @@ import json
 from time import time
 import torch
 
-from models import SteganoGAN
-from decoders import DenseDecoder, BasicDecoder
-from encoders import DenseEncoder, BasicEncoder, ResidualEncoder
-from loader import DataLoader
+from steganogan.steganogan import SteganoGAN
+from steganogan.models.decoders import DenseDecoder, BasicDecoder
+from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder
+from steganogan.data_loader import DataLoader
 
 
 def main():
