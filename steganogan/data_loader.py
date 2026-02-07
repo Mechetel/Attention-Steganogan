@@ -77,7 +77,8 @@ class DataLoaderFactory:
             limit=train_limit,
             shuffle=True,
             num_workers=num_workers,
-            batch_size=batch_size
+            batch_size=batch_size,
+            pin_memory=torch.cuda.is_available()
         )
 
         val_loader = DataLoader(
@@ -86,7 +87,8 @@ class DataLoaderFactory:
             limit=val_limit,
             shuffle=False,
             num_workers=num_workers,
-            batch_size=batch_size
+            batch_size=batch_size,
+            pin_memory=torch.cuda.is_available()
         )
 
         return train_loader, val_loader

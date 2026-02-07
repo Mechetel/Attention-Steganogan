@@ -14,7 +14,7 @@ import torch
 
 from steganogan.steganogan import SteganoGAN
 from steganogan.models.decoders import DenseDecoder, BasicDecoder
-from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder
+from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder, AttentionEncoder
 from steganogan.data_loader import DataLoader
 
 
@@ -24,11 +24,11 @@ def main():
     CONFIG = {
         'gpu': True,
         'data_depth': 1,
-        'encoder': 'dense',  # Options: 'basic', 'residual', 'dense'
+        'encoder': 'attention',  # Options: 'basic', 'residual', 'dense', 'attention'
         'decoder': 'dense',  # Options: 'basic', 'dense'
-        'epochs': 32,
-        'batch_size': 4,
-        'num_workers': 8,
+        'epochs': 1,
+        'batch_size': 4,  # Reduced for MPS memory constraints # 4
+        'num_workers': 8, # Set to 0 for macOS/MPS compatibility # 8
         'dataset': 'div2k',
         'training_type': 'panet_dense'
     }
@@ -48,7 +48,8 @@ def main():
     encoder_map = {
         'basic': BasicEncoder,
         'residual': ResidualEncoder,
-        'dense': DenseEncoder
+        'dense': DenseEncoder,
+        'attention': AttentionEncoder
     }
 
     decoder_map = {
@@ -62,14 +63,14 @@ def main():
     # Create data loaders
     print("Loading datasets...")
     train = DataLoader(
-        os.path.join("data", CONFIG['dataset'], "train"),
+        os.path.abspath('/Users/dmitryhoma/Projects/datasets/div2k/train'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=True
     )
 
     validation = DataLoader(
-        os.path.join("data", CONFIG['dataset'], "val"),
+        os.path.abspath('/Users/dmitryhoma/Projects/datasets/div2k/val'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=False

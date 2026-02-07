@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+from .attention import PyramidAttention
 
 class BasicEncoder(nn.Module):
     """
@@ -11,7 +11,6 @@ class BasicEncoder(nn.Module):
     Input: (N, 3, H, W), (N, D, H, W)
     Output: (N, 3, H, W)
     """
-    add_image = False
 
     def __init__(self, data_depth):
         super(BasicEncoder, self).__init__()
@@ -172,9 +171,76 @@ class DenseEncoder(nn.Module):
 
         # Output block with all dense connections
         x4_input = torch.cat([x1, x2, x3, data], dim=1)
-        output = self.conv4(x4_input)
+        x4 = self.conv4(x4_input)
 
         # Add residual connection (original image)
-        output = image + output
+        output = image + x4
 
+        return output
+
+class AttentionEncoder(nn.Module):
+    """
+    The AttentionEncoder module takes a cover image and a data tensor and combines
+    them into a steganographic image using pyramid attention and dense connections.
+    Input: (N, 3, H, W), (N, D, H, W)
+    Output: (N, 3, H, W)
+    """
+
+    def __init__(self, data_depth):
+        super(AttentionEncoder, self).__init__()
+        self.version = '1'
+        self.data_depth = data_depth
+        self._build_layers()
+
+    def _build_layers(self):
+        # First convolution block
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+
+        # Pyramid attention block
+        self.attention = PyramidAttention(channel=32)
+
+        # Second convolution block
+        self.conv2 = nn.Conv2d(32 + self.data_depth, 32, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
+
+        # Output convolution
+        self.conv3 = nn.Conv2d(64 + self.data_depth, 3, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(3)
+
+        self.conv4 = nn.Conv2d(96 + self.data_depth, 3, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(3)
+
+
+    def upgrade_legacy(self):
+        """Transform legacy pretrained models to make them usable with new code versions."""
+        if not hasattr(self, 'version'):
+            self.version = '1'
+
+    def forward(self, image, data):
+        # First block
+        x1 = self.conv1(image)
+        x1 = F.leaky_relu(x1, inplace=True)
+        x1 = self.bn1(x1)
+
+        # Pyramid attention block
+        x_attn = self.attention(x1)
+
+        # Second block with dense connection
+        x2_input = torch.cat([x_attn, data], dim=1)
+        x2 = self.conv2(x2_input)
+        x2 = F.leaky_relu(x2, inplace=True)
+        x2 = self.bn2(x2)
+
+        # Output block with dense connections
+        x3_input = torch.cat([x_attn, x2, data], dim=1)
+        x3 = self.conv3(x3_input)
+        x3 = F.leaky_relu(x3, inplace=True)
+        x3 = self.bn3(x3)   
+
+        x4_input = torch.cat([x_attn, x2, x3, data], dim=1)
+        x4 = self.conv4(x4_input)
+
+        # Add residual connection (original image)
+        output = image + x4
         return output
