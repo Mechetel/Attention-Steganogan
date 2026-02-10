@@ -1,8 +1,9 @@
-git clone https://github.com/Mechetel/PANet_Steganogan.git
-cd PANet_Steganogan/
+git clone https://github.com/Mechetel/Attention-Steganogan.git
+cd Attention-Steganogan/
 apt install python3-pip unzip
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-pip3 install imageio tqdm reedsolo
+pip3 install imageio tqdm reedsolo scikit-image
+
 
 cd data/
 mkdir div2k

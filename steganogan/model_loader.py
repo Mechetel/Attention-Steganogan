@@ -21,7 +21,7 @@ class ModelLoader:
                 device = torch.device('cpu')
         else:
             device = torch.device('cpu')
-        
+
         if verbose:
             print("Loading model to device:", device)
 

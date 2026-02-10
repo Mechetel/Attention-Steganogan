@@ -157,6 +157,6 @@ class SteganoGAN(object):
             print(f'Model saved to {path}')
 
     @classmethod
-    def load(cls, path, gpu=True, verbose=False, log_dir=None):
+    def load(cls, path, gpu, verbose=False, log_dir=None):
         """Load model from file."""
         return ModelLoader.load(path, gpu, verbose, log_dir)

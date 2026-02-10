@@ -27,7 +27,7 @@ def main():
         'encoder': 'attention',  # Options: 'basic', 'residual', 'dense', 'attention'
         'decoder': 'dense',  # Options: 'basic', 'dense'
         'epochs': 1,
-        'batch_size': 4,  # Reduced for MPS memory constraints # 4
+        'batch_size': 4,  # Reduced to 1 for attention encoder memory requirements
         'num_workers': 8, # Set to 0 for macOS/MPS compatibility # 8
         'dataset': 'div2k',
         'training_type': 'panet_dense'
@@ -63,14 +63,14 @@ def main():
     # Create data loaders
     print("Loading datasets...")
     train = DataLoader(
-        os.path.expanduser('~/data/div2k/train'),
+        os.path.expanduser('~/Attention-Steganogan/data/div2k/train'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=True
     )
 
     validation = DataLoader(
-        os.path.expanduser('~/data/div2k/val'),
+        os.path.expanduser('~/Attention-Steganogan/data/div2k/val'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=False

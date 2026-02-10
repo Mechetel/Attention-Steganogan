@@ -236,7 +236,7 @@ class AttentionEncoder(nn.Module):
         x3_input = torch.cat([x_attn, x2, data], dim=1)
         x3 = self.conv3(x3_input)
         x3 = F.leaky_relu(x3, inplace=True)
-        x3 = self.bn3(x3)   
+        x3 = self.bn3(x3)
 
         x4_input = torch.cat([x_attn, x2, x3, data], dim=1)
         x4 = self.conv4(x4_input)

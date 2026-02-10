@@ -11,7 +11,7 @@ class PyramidAttention(nn.Module):
         self.stride = stride
         self.res_scale = res_scale
         self.softmax_scale = softmax_scale
-        self.scale = [1-i/10 for i in range(level)]
+        self.scale = [1-i/10 for i in range(level)] # if level=5, scale = [1, 0.9, 0.8, 0.7, 0.6]
         self.average = average
         escape_NaN = torch.FloatTensor([1e-4])
         self.register_buffer('escape_NaN', escape_NaN)
@@ -25,7 +25,7 @@ class PyramidAttention(nn.Module):
         match_base = self.conv_match_L_base(input)
         shape_base = list(res.size())
         input_groups = torch.split(match_base,1,dim=0)
-        # patch size for matching 
+        # patch size for matching
         kernel = self.ksize
         # raw_w is for reconstruction
         raw_w = []
@@ -78,10 +78,10 @@ class PyramidAttention(nn.Module):
             yi = yi.view(1,wi.shape[0], shape_base[2], shape_base[3])  # (B=1, C=32*32, H=32, W=32)
             # softmax matching score
             yi = F.softmax(yi*self.softmax_scale, dim=1)
-            
+
             if self.average == False:
                 yi = (yi == yi.max(dim=1,keepdim=True)[0]).float()
-            
+
             # deconv for patch pasting
             raw_wi = torch.cat([raw_w[i][idx][0] for i in range(len(self.scale))],dim=0)
             yi = F.conv_transpose2d(yi, raw_wi, stride=self.stride,padding=1)/4.
