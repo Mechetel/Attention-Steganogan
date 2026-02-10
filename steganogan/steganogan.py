@@ -4,14 +4,15 @@ import inspect
 import os
 import torch
 
-from steganogan.managers.decoder_manager import DecoderManager
-from steganogan.managers.encoder_manager import EncoderManager
-from steganogan.managers.history_manager import HistoryManager
-from steganogan.managers.training_manager import TrainingManager
-from steganogan.managers.device_manager import DeviceManager
-from steganogan.generators.sample_generator import SampleGenerator
-from steganogan.model_loader import ModelLoader
-from steganogan.generators.payload_generator import PayloadGenerator
+from .managers import (
+    DecoderManager,
+    EncoderManager,
+    HistoryManager,
+    TrainingManager,
+    DeviceManager
+)
+from .generators import SampleGenerator, PayloadGenerator
+from .model_loader import ModelLoader
 
 DEFAULT_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),

@@ -63,14 +63,14 @@ def main():
     # Create data loaders
     print("Loading datasets...")
     train = DataLoader(
-        os.path.abspath('/Users/dmitryhoma/Projects/datasets/div2k/train'),
+        os.path.expanduser('~/data/div2k/train'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=True
     )
 
     validation = DataLoader(
-        os.path.abspath('/Users/dmitryhoma/Projects/datasets/div2k/val'),
+        os.path.expanduser('~/data/div2k/val'),
         batch_size=CONFIG['batch_size'],
         num_workers=CONFIG['num_workers'],
         shuffle=False
