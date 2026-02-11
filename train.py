@@ -14,7 +14,7 @@ import torch
 
 from steganogan.steganogan import SteganoGAN
 from steganogan.models.decoders import DenseDecoder, BasicDecoder
-from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder, AttentionEncoder
+from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder #, AttentionEncoder
 from steganogan.data_loader import DataLoader
 
 
@@ -24,7 +24,7 @@ def main():
     CONFIG = {
         'gpu': True,
         'data_depth': 1,
-        'encoder': 'attention',  # Options: 'basic', 'residual', 'dense', 'attention'
+        'encoder': 'dense',  # Options: 'basic', 'residual', 'dense', 'attention'
         'decoder': 'dense',  # Options: 'basic', 'dense'
         'epochs': 1,
         'batch_size': 4,  # Reduced to 1 for attention encoder memory requirements
@@ -48,8 +48,8 @@ def main():
     encoder_map = {
         'basic': BasicEncoder,
         'residual': ResidualEncoder,
-        'dense': DenseEncoder,
-        'attention': AttentionEncoder
+        'dense': DenseEncoder
+        # 'attention': AttentionEncoder
     }
 
     decoder_map = {
