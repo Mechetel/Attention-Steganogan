@@ -31,11 +31,20 @@ METRIC_FIELDS = [
     'train.decoder_acc',
 ]
 
+# Additional metric fields when critic is enabled
+CRITIC_METRIC_FIELDS = [
+    'train.cover_score',
+    'train.generated_score',
+    'val.cover_score',
+    'val.generated_score',
+]
+
 
 class SteganoGAN(object):
     """Main SteganoGAN model class."""
 
-    def __init__(self, data_depth, encoder, decoder, gpu=True, verbose=False, log_dir=None, **kwargs):
+    def __init__(self, data_depth, encoder, decoder, critic=None,
+                 gpu=True, verbose=False, log_dir=None, **kwargs):
         self.verbose = verbose
         self.data_depth = data_depth
         kwargs['data_depth'] = data_depth
@@ -43,17 +52,28 @@ class SteganoGAN(object):
         self.encoder = self._get_instance(encoder, kwargs)
         self.decoder = self._get_instance(decoder, kwargs)
 
+        # Critic (discriminator) — optional for adversarial training
+        if critic is not None:
+            self.critic = self._get_instance(critic, kwargs)
+        else:
+            self.critic = None
+
         self.device_manager = DeviceManager(gpu=gpu, verbose=verbose)
         self.device = self.device_manager.device
         self.gpu = self.device_manager.gpu
-        self.device_manager.to_device(self.encoder, self.decoder)
+        models_to_device = [self.encoder, self.decoder]
+        if self.critic is not None:
+            models_to_device.append(self.critic)
+        self.device_manager.to_device(*models_to_device)
 
         self.payload_generator = PayloadGenerator(self.device)
         self.training_manager = TrainingManager(
-            self.encoder, self.decoder, self.data_depth, self.device, verbose
+            self.encoder, self.decoder, self.data_depth, self.device, verbose,
+            critic=self.critic
         )
 
         self.encoder_decoder_optimizer = None
+        self.critic_optimizer = None
         self.fit_metrics = None
         self.history = list()
 
@@ -78,7 +98,8 @@ class SteganoGAN(object):
 
         argspec = inspect.getfullargspec(class_or_instance.__init__).args
         argspec.remove('self')
-        init_args = {arg: kwargs[arg] for arg in argspec}
+        # Only pass args that exist in kwargs; let defaults handle the rest
+        init_args = {arg: kwargs[arg] for arg in argspec if arg in kwargs}
 
         return class_or_instance(**init_args)
 
@@ -87,7 +108,10 @@ class SteganoGAN(object):
         self.device_manager.set_device()
         self.device = self.device_manager.device
         self.gpu = self.device_manager.gpu
-        self.device_manager.to_device(self.encoder, self.decoder)
+        models = [self.encoder, self.decoder]
+        if self.critic is not None:
+            models.append(self.critic)
+        self.device_manager.to_device(*models)
 
     def fit(self, train, validate, epochs=32, start_epoch=1, data_depth=None):
         """Train the model."""
@@ -98,13 +122,18 @@ class SteganoGAN(object):
             self.encoder_decoder_optimizer = self.training_manager.get_optimizer()
             self.training_manager.optimizer = self.encoder_decoder_optimizer
 
+        if self.critic is not None and self.critic_optimizer is None:
+            self.critic_optimizer = self.training_manager.get_critic_optimizer()
+            self.training_manager.critic_optimizer = self.critic_optimizer
+
         if self.history_manager:
             self.history = self.history_manager.history
 
         end_epoch = start_epoch + epochs
 
         for epoch in range(start_epoch, end_epoch):
-            metrics = {field: list() for field in METRIC_FIELDS}
+            all_fields = METRIC_FIELDS + (CRITIC_METRIC_FIELDS if self.critic is not None else [])
+            metrics = {field: list() for field in all_fields}
 
             if self.verbose:
                 print(f'\n{"="*60}')

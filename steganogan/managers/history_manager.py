@@ -34,9 +34,15 @@ class HistoryManager:
         print(f"  Train - Enc MSE: {metrics['train.encoder_mse']:.6f}, "
               f"Dec Loss: {metrics['train.decoder_loss']:.4f}, "
               f"Dec Acc: {metrics['train.decoder_acc']:.4f}")
+        if 'train.cover_score' in metrics:
+            print(f"  Train - Cover Score: {metrics['train.cover_score']:.6f}, "
+                  f"Generated Score: {metrics['train.generated_score']:.6f}")
         print(f"  Val   - Enc MSE: {metrics['val.encoder_mse']:.6f}, "
               f"Dec Loss: {metrics['val.decoder_loss']:.4f}, "
               f"Dec Acc: {metrics['val.decoder_acc']:.4f}")
         print(f"  Val   - SSIM: {metrics['val.ssim']:.4f}, "
               f"PSNR: {metrics['val.psnr']:.2f}, "
               f"RSBPP: {metrics['val.rsbpp']:.4f}")
+        if 'val.cover_score' in metrics:
+            print(f"  Val   - Cover Score: {metrics['val.cover_score']:.6f}, "
+                  f"Generated Score: {metrics['val.generated_score']:.6f}")

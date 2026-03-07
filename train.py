@@ -15,6 +15,7 @@ import torch
 from steganogan.steganogan import SteganoGAN
 from steganogan.models.decoders import DenseDecoder, BasicDecoder
 from steganogan.models.encoders import DenseEncoder, BasicEncoder, ResidualEncoder #, AttentionEncoder
+from steganogan.models.critics import BasicCritic
 from steganogan.data_loader import DataLoader
 
 
@@ -26,6 +27,7 @@ def main():
         'data_depth': 1,
         'encoder': 'dense',  # Options: 'basic', 'residual', 'dense', 'attention'
         'decoder': 'dense',  # Options: 'basic', 'dense'
+        'critic': True,  # True: enable adversarial training with critic, False: disable
         'epochs': 1,
         'batch_size': 4,  # Reduced to 1 for attention encoder memory requirements
         'num_workers': 8, # Set to 0 for macOS/MPS compatibility # 8
@@ -49,7 +51,6 @@ def main():
         'basic': BasicEncoder,
         'residual': ResidualEncoder,
         'dense': DenseEncoder
-        # 'attention': AttentionEncoder
     }
 
     decoder_map = {
@@ -59,6 +60,7 @@ def main():
 
     encoder_class = encoder_map[CONFIG['encoder']]
     decoder_class = decoder_map[CONFIG['decoder']]
+    critic_class = BasicCritic if CONFIG['critic'] else None
 
     # Create data loaders
     print("Loading datasets...")
@@ -93,10 +95,15 @@ def main():
 
     # Initialize SteganoGAN model
     print(f"\nInitializing model with {CONFIG['encoder']} encoder and {CONFIG['decoder']} decoder...")
+    if CONFIG['critic']:
+        print(f"  Adversarial training ENABLED with critic")
+    else:
+        print(f"  Adversarial training DISABLED (no critic)")
     steganogan = SteganoGAN(
         data_depth=CONFIG['data_depth'],
         encoder=encoder_class,
         decoder=decoder_class,
+        critic=critic_class,
         gpu=CONFIG['gpu'],
         verbose=True,
         log_dir=log_dir

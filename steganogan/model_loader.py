@@ -40,12 +40,17 @@ class ModelLoader:
 
         steganogan.encoder.upgrade_legacy()
         steganogan.decoder.upgrade_legacy()
+        if hasattr(steganogan, 'critic') and steganogan.critic is not None:
+            steganogan.critic.upgrade_legacy()
 
         # Reinitialize device manager with gpu parameter
         steganogan.device_manager = DeviceManager(gpu=gpu, verbose=verbose)
         steganogan.device = steganogan.device_manager.device
         steganogan.gpu = steganogan.device_manager.gpu
-        steganogan.device_manager.to_device(steganogan.encoder, steganogan.decoder)
+        models = [steganogan.encoder, steganogan.decoder]
+        if hasattr(steganogan, 'critic') and steganogan.critic is not None:
+            models.append(steganogan.critic)
+        steganogan.device_manager.to_device(*models)
 
         if verbose:
             print(f'Model loaded from {path}')
