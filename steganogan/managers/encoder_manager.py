@@ -1,15 +1,16 @@
 import torch
 from imageio import imread, imwrite
 
+
 class EncoderManager:
     """Manages image encoding operations."""
 
     def __init__(self, encoder, payload_generator, data_depth, device, verbose=False):
-        self.encoder = encoder
+        self.encoder           = encoder
         self.payload_generator = payload_generator
-        self.data_depth = data_depth
-        self.device = device
-        self.verbose = verbose
+        self.data_depth        = data_depth
+        self.device            = device
+        self.verbose           = verbose
 
     def encode(self, cover_path, output_path, text):
         """Encode text message into cover image."""
@@ -21,10 +22,18 @@ class EncoderManager:
             cover_size[3], cover_size[2], self.data_depth, text
         )
 
-        cover = cover.to(self.device)
+        cover   = cover.to(self.device)
         payload = payload.to(self.device)
-        generated = self.encoder(cover, payload)[0].clamp(-1.0, 1.0)
 
+        raw_out = self.encoder(cover, payload)
+
+        # Handle iterative encoder: take the last (best) stego image
+        if isinstance(raw_out, (list, tuple)):
+            generated = raw_out[-1]
+        else:
+            generated = raw_out
+
+        generated = generated[0].clamp(-1.0, 1.0)
         generated = (generated.permute(2, 1, 0).detach().cpu().numpy() + 1.0) * 127.5
         imwrite(output_path, generated.astype('uint8'))
 
