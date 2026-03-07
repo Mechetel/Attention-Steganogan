@@ -2,9 +2,11 @@ import numpy as np
 import torch
 import torchvision
 from torchvision import transforms
+from torch.utils.data import DataLoader as TorchDataLoader
+from typing import Optional, Tuple
 
 
-_DEFAULT_MU = [.5, .5, .5]
+_DEFAULT_MU    = [.5, .5, .5]
 _DEFAULT_SIGMA = [.5, .5, .5]
 
 
@@ -12,8 +14,8 @@ class TransformBuilder:
     """Builds image transformations for training and validation."""
 
     @staticmethod
-    def default_transform(crop_size=360):
-        """Create default training transform."""
+    def default_transform(crop_size: int = 360) -> transforms.Compose:
+        """Create default training transform with random augmentation."""
         return transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(crop_size, pad_if_needed=True),
@@ -22,7 +24,7 @@ class TransformBuilder:
         ])
 
     @staticmethod
-    def validation_transform(crop_size=360):
+    def validation_transform(crop_size: int = 360) -> transforms.Compose:
         """Create validation transform without random augmentation."""
         return transforms.Compose([
             transforms.CenterCrop(crop_size),
@@ -37,20 +39,22 @@ DEFAULT_TRANSFORM = TransformBuilder.default_transform()
 class ImageFolder(torchvision.datasets.ImageFolder):
     """Custom ImageFolder with optional limit on dataset size."""
 
-    def __init__(self, path, transform, limit=np.inf):
+    def __init__(self, path: str, transform: transforms.Compose,
+                 limit: float = np.inf) -> None:
         super().__init__(path, transform=transform)
-        self.limit = limit
+        self.limit: float = limit
 
-    def __len__(self):
-        length = super().__len__()
-        return min(length, self.limit)
+    def __len__(self) -> int:
+        return min(super().__len__(), int(self.limit))
 
 
-class DataLoader(torch.utils.data.DataLoader):
+class DataLoader(TorchDataLoader):
     """Custom DataLoader for steganography training."""
 
-    def __init__(self, path, transform=None, limit=np.inf, shuffle=True,
-                 num_workers=8, batch_size=4, *args, **kwargs):
+    def __init__(self, path: str, transform: Optional[transforms.Compose] = None,
+                 limit: float = np.inf, shuffle: bool = True,
+                 num_workers: int = 8, batch_size: int = 4,
+                 *args, **kwargs) -> None:
         if transform is None:
             transform = DEFAULT_TRANSFORM
 
@@ -60,7 +64,7 @@ class DataLoader(torch.utils.data.DataLoader):
             shuffle=shuffle,
             num_workers=num_workers,
             *args,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -68,9 +72,15 @@ class DataLoaderFactory:
     """Factory for creating train and validation data loaders."""
 
     @staticmethod
-    def create_loaders(train_path, val_path, batch_size=4, num_workers=8,
-                      train_limit=np.inf, val_limit=np.inf):
-        """Create training and validation data loaders."""
+    def create_loaders(
+        train_path: str,
+        val_path: str,
+        batch_size: int = 4,
+        num_workers: int = 8,
+        train_limit: float = np.inf,
+        val_limit: float = np.inf,
+    ) -> Tuple[DataLoader, DataLoader]:
+        """Create and return (train_loader, val_loader) pairs."""
         train_loader = DataLoader(
             train_path,
             transform=TransformBuilder.default_transform(),
@@ -78,7 +88,7 @@ class DataLoaderFactory:
             shuffle=True,
             num_workers=num_workers,
             batch_size=batch_size,
-            pin_memory=torch.cuda.is_available()
+            pin_memory=torch.cuda.is_available(),
         )
 
         val_loader = DataLoader(
@@ -88,7 +98,7 @@ class DataLoaderFactory:
             shuffle=False,
             num_workers=num_workers,
             batch_size=batch_size,
-            pin_memory=torch.cuda.is_available()
+            pin_memory=torch.cuda.is_available(),
         )
 
         return train_loader, val_loader

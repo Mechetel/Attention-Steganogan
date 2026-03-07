@@ -1,19 +1,30 @@
 import torch
 from imageio import imread, imwrite
+from typing import Union
 
 
 class EncoderManager:
     """Manages image encoding operations."""
 
-    def __init__(self, encoder, payload_generator, data_depth, device, verbose=False):
-        self.encoder           = encoder
-        self.payload_generator = payload_generator
-        self.data_depth        = data_depth
-        self.device            = device
-        self.verbose           = verbose
+    def __init__(self, encoder: torch.nn.Module, payload_generator: object,
+                 data_depth: int, device: torch.device,
+                 verbose: bool = False) -> None:
+        self.encoder:           torch.nn.Module = encoder
+        self.payload_generator: object          = payload_generator
+        self.data_depth:        int             = data_depth
+        self.device:            torch.device    = device
+        self.verbose:           bool            = verbose
 
-    def encode(self, cover_path, output_path, text):
-        """Encode text message into cover image."""
+    def encode(self, cover_path: str, output_path: str, text: str) -> None:
+        """
+        Encode a text message into a cover image and write the stego image to disk.
+
+        Parameters
+        ----------
+        cover_path  : path to the source cover image (RGB)
+        output_path : path where the stego image will be saved
+        text        : secret text message to embed
+        """
         cover = imread(cover_path, pilmode='RGB') / 127.5 - 1.0
         cover = torch.FloatTensor(cover).permute(2, 1, 0).unsqueeze(0)
 
@@ -27,7 +38,7 @@ class EncoderManager:
 
         raw_out = self.encoder(cover, payload)
 
-        # Handle iterative encoder: take the last (best) stego image
+        # Handle iterative encoder (returns list of stego images); take the final one
         if isinstance(raw_out, (list, tuple)):
             generated = raw_out[-1]
         else:

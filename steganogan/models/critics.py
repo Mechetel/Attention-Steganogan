@@ -12,6 +12,7 @@ References:
 - SteganoGAN: DAI-Lab/SteganoGAN (original critic architecture)
 """
 
+import torch
 from torch import nn
 
 
@@ -29,9 +30,9 @@ class BasicCritic(nn.Module):
     Output: (N, 1, H, W)
     """
 
-    def __init__(self, data_depth):
+    def __init__(self, data_depth: int) -> None:
         super(BasicCritic, self).__init__()
-        self.version = '1'
+        self.version: str = '1'
 
         self.layers = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
@@ -45,9 +46,9 @@ class BasicCritic(nn.Module):
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
 
-    def upgrade_legacy(self):
+    def upgrade_legacy(self) -> None:
         if not hasattr(self, 'version'):
             self.version = '1'
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)

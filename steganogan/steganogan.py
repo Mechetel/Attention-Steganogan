@@ -2,6 +2,7 @@
 import gc
 import inspect
 import os
+from typing import Any, Dict, List, Optional, Type, Union
 import torch
 
 from .managers import (
@@ -9,7 +10,7 @@ from .managers import (
     EncoderManager,
     HistoryManager,
     TrainingManager,
-    DeviceManager
+    DeviceManager,
 )
 from .generators import SampleGenerator, PayloadGenerator
 from .model_loader import ModelLoader
@@ -19,7 +20,7 @@ DEFAULT_PATH = os.path.join(
     'train'
 )
 
-METRIC_FIELDS = [
+METRIC_FIELDS: List[str] = [
     'val.encoder_mse',
     'val.decoder_loss',
     'val.decoder_acc',
@@ -31,8 +32,7 @@ METRIC_FIELDS = [
     'train.decoder_acc',
 ]
 
-# Additional metric fields when critic is enabled
-CRITIC_METRIC_FIELDS = [
+CRITIC_METRIC_FIELDS: List[str] = [
     'train.cover_score',
     'train.generated_score',
     'val.cover_score',
@@ -43,78 +43,114 @@ CRITIC_METRIC_FIELDS = [
 class SteganoGAN(object):
     """Main SteganoGAN model class."""
 
-    def __init__(self, data_depth, encoder, decoder, critic=None,
-                 gpu=True, verbose=False, log_dir=None, **kwargs):
-        self.verbose = verbose
-        self.data_depth = data_depth
-        kwargs['data_depth'] = data_depth
+    def __init__(
+        self,
+        data_depth: int,
+        encoder: Union[torch.nn.Module, Type[torch.nn.Module]],
+        decoder: Union[torch.nn.Module, Type[torch.nn.Module]],
+        critic: Optional[Union[torch.nn.Module, Type[torch.nn.Module]]] = None,
+        gpu: bool = True,
+        verbose: bool = False,
+        log_dir: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        self.verbose:    bool = verbose
+        self.data_depth: int  = data_depth
+        kwargs['data_depth']  = data_depth
 
-        self.encoder = self._get_instance(encoder, kwargs)
-        self.decoder = self._get_instance(decoder, kwargs)
+        self.encoder: torch.nn.Module = self._get_instance(encoder, kwargs)
+        self.decoder: torch.nn.Module = self._get_instance(decoder, kwargs)
 
-        # Critic (discriminator) — optional for adversarial training
-        if critic is not None:
-            self.critic = self._get_instance(critic, kwargs)
-        else:
-            self.critic = None
+        self.critic: Optional[torch.nn.Module] = (
+            self._get_instance(critic, kwargs) if critic is not None else None
+        )
 
-        self.device_manager = DeviceManager(gpu=gpu, verbose=verbose)
-        self.device = self.device_manager.device
-        self.gpu = self.device_manager.gpu
+        self.device_manager: DeviceManager = DeviceManager(gpu=gpu, verbose=verbose)
+        self.device: torch.device          = self.device_manager.device
+        self.gpu:    bool                  = self.device_manager.gpu
+
         models_to_device = [self.encoder, self.decoder]
         if self.critic is not None:
             models_to_device.append(self.critic)
         self.device_manager.to_device(*models_to_device)
 
-        self.payload_generator = PayloadGenerator(self.device)
-        self.training_manager = TrainingManager(
+        self.payload_generator: PayloadGenerator = PayloadGenerator(self.device)
+        self.training_manager:  TrainingManager  = TrainingManager(
             self.encoder, self.decoder, self.data_depth, self.device, verbose,
-            critic=self.critic
+            critic=self.critic,
         )
 
-        self.encoder_decoder_optimizer = None
-        self.critic_optimizer = None
-        self.fit_metrics = None
-        self.history = list()
+        self.encoder_decoder_optimizer: Optional[torch.optim.Optimizer] = None
+        self.critic_optimizer:          Optional[torch.optim.Optimizer] = None
+        self.fit_metrics:               Optional[Dict[str, Any]]        = None
+        self.history:                   List[Dict[str, Any]]            = []
 
-        self.log_dir = log_dir
+        self.log_dir: Optional[str] = log_dir
         if log_dir:
             os.makedirs(self.log_dir, exist_ok=True)
-            self.samples_path = os.path.join(self.log_dir, 'samples')
+            self.samples_path: str = os.path.join(self.log_dir, 'samples')
             os.makedirs(self.samples_path, exist_ok=True)
-            self.history_manager = HistoryManager(log_dir)
+            self.history_manager: Optional[HistoryManager] = HistoryManager(log_dir)
         else:
             self.history_manager = None
 
-        self.encoder_manager = EncoderManager(
+        self.encoder_manager: EncoderManager = EncoderManager(
             self.encoder, self.payload_generator, self.data_depth, self.device, verbose
         )
-        self.decoder_manager = DecoderManager(self.decoder, self.device, verbose)
+        self.decoder_manager: DecoderManager = DecoderManager(
+            self.decoder, self.device, verbose
+        )
 
-    def _get_instance(self, class_or_instance, kwargs):
-        """Create instance from class or return existing instance."""
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _get_instance(
+        self,
+        class_or_instance: Union[torch.nn.Module, Type[torch.nn.Module]],
+        kwargs: Dict[str, Any],
+    ) -> torch.nn.Module:
+        """Return `class_or_instance` directly if already instantiated,
+        otherwise instantiate it with the relevant subset of `kwargs`."""
         if not inspect.isclass(class_or_instance):
             return class_or_instance
 
         argspec = inspect.getfullargspec(class_or_instance.__init__).args
         argspec.remove('self')
-        # Only pass args that exist in kwargs; let defaults handle the rest
         init_args = {arg: kwargs[arg] for arg in argspec if arg in kwargs}
-
         return class_or_instance(**init_args)
 
-    def set_device(self):
-        """Set compute device (automatically detects CUDA > MPS > CPU)."""
+    # ── Device management ─────────────────────────────────────────────────────
+
+    def set_device(self) -> None:
+        """Re-detect and apply the best available compute device."""
         self.device_manager.set_device()
         self.device = self.device_manager.device
-        self.gpu = self.device_manager.gpu
+        self.gpu    = self.device_manager.gpu
         models = [self.encoder, self.decoder]
         if self.critic is not None:
             models.append(self.critic)
         self.device_manager.to_device(*models)
 
-    def fit(self, train, validate, epochs=32, start_epoch=1, data_depth=None):
-        """Train the model."""
+    # ── Training ──────────────────────────────────────────────────────────────
+
+    def fit(
+        self,
+        train: torch.utils.data.DataLoader,
+        validate: torch.utils.data.DataLoader,
+        epochs: int = 32,
+        start_epoch: int = 1,
+        data_depth: Optional[int] = None,
+    ) -> None:
+        """
+        Train the encoder, decoder, and (optionally) the critic.
+
+        Parameters
+        ----------
+        train       : training DataLoader
+        validate    : validation DataLoader
+        epochs      : number of epochs to run
+        start_epoch : epoch index to start from (useful when resuming)
+        data_depth  : override self.data_depth if provided
+        """
         if self.data_depth is None:
             self.data_depth = data_depth
 
@@ -132,13 +168,15 @@ class SteganoGAN(object):
         end_epoch = start_epoch + epochs
 
         for epoch in range(start_epoch, end_epoch):
-            all_fields = METRIC_FIELDS + (CRITIC_METRIC_FIELDS if self.critic is not None else [])
-            metrics = {field: list() for field in all_fields}
+            all_fields = METRIC_FIELDS + (
+                CRITIC_METRIC_FIELDS if self.critic is not None else []
+            )
+            metrics: Dict[str, List[float]] = {f: [] for f in all_fields}
 
             if self.verbose:
-                print(f'\n{"="*60}')
+                print(f'\n{"=" * 60}')
                 print(f'Epoch {epoch}/{end_epoch - 1}')
-                print(f'{"="*60}')
+                print(f'{"=" * 60}')
 
             self.training_manager.fit_coders(train, metrics)
             self.training_manager.validate(validate, metrics)
@@ -155,13 +193,15 @@ class SteganoGAN(object):
                     self.history = self.history_manager.history
 
                 if epoch == start_epoch or epoch % 5 == 0 or epoch == end_epoch - 1:
-                    save_name = '{}.rsbpp-{:03f}.p'.format(epoch, self.fit_metrics['val.rsbpp'])
-                    self.save(os.path.join(self.log_dir, save_name))
-                    sample_generator = SampleGenerator(
-                        self.encoder, self.payload_generator, self.device
+                    save_name = '{}.rsbpp-{:03f}.p'.format(
+                        epoch, self.fit_metrics['val.rsbpp']
                     )
-                    sample_generator.generate_samples(
-                        self.samples_path, epoch, "Hello, SteganoGAN!", self.data_depth
+                    self.save(os.path.join(self.log_dir, save_name))
+                    SampleGenerator(
+                        self.encoder, self.payload_generator, self.device
+                    ).generate_samples(
+                        self.samples_path, epoch,
+                        'Hello, SteganoGAN!', self.data_depth,
                     )
 
             if self.device.type == 'cuda':
@@ -171,21 +211,27 @@ class SteganoGAN(object):
 
             gc.collect()
 
-    def encode(self, cover, output, text):
-        """Encode text message into cover image."""
+    # ── Encode / Decode ───────────────────────────────────────────────────────
+
+    def encode(self, cover: str, output: str, text: str) -> None:
+        """Embed `text` into the cover image at `cover` and write to `output`."""
         self.encoder_manager.encode(cover, output, text)
 
-    def decode(self, image):
-        """Decode hidden message from image."""
+    def decode(self, image: str) -> str:
+        """Extract and return the hidden message from the stego image at `image`."""
         return self.decoder_manager.decode(image)
 
-    def save(self, path):
-        """Save model to file."""
+    # ── Persistence ───────────────────────────────────────────────────────────
+
+    def save(self, path: str) -> None:
+        """Serialise the full model to `path`."""
         torch.save(self, path)
         if self.verbose:
             print(f'Model saved to {path}')
 
     @classmethod
-    def load(cls, path, gpu, verbose=False, log_dir=None):
-        """Load model from file."""
+    def load(cls, path: str, gpu: bool,
+             verbose: bool = False,
+             log_dir: Optional[str] = None) -> 'SteganoGAN':
+        """Load and return a SteganoGAN model from a checkpoint file."""
         return ModelLoader.load(path, gpu, verbose, log_dir)
