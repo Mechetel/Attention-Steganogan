@@ -14,19 +14,18 @@ Paper-recommended settings to reproduce Div2K results:
 
 import gc
 import json
+import multiprocessing
 import os
 import sys
-import warnings
+
+# The resource_tracker subprocess (which prints the semaphore leak warning)
+# is spawned with Python's -W flags copied from sys.warnoptions.  Adding the
+# filter here — before any DataLoader worker is created — causes the filter
+# to be forwarded to the subprocess, silencing the warning at its source.
+sys.warnoptions.append("ignore::UserWarning:multiprocessing.resource_tracker")
+
 from time import time
 from typing import Any, Dict
-
-# Suppress the benign macOS resource-tracker semaphore warning that
-# appears when os._exit() terminates DataLoader workers abruptly.
-warnings.filterwarnings(
-    "ignore",
-    message="resource_tracker: There appear to be",
-    category=UserWarning,
-)
 
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
@@ -51,14 +50,14 @@ CONFIG: Dict[str, Any] = {
     # Architecture
     "encoder":       "dense",       # basic | residual | dense | edge_unet
     "decoder":       "dense",       # basic | dense
-    "critic":        False,          # True | False (if True, adds a critic network for adversarial training)
+    "critic":        True,          # True | False (if True, adds a critic network for adversarial training)
 
     # Training
     "data_depth":    1,             # bits per pixel
-    "epochs":        1,
+    "epochs":        32,
     "batch_size":    8,
     "num_workers":   8,
-    "crop_size":     30,          # 400 for edge_unet, 360 for others
+    "crop_size":     360,          # 400 for edge_unet, 360 for others
 
     # Data paths
     "dataset":       "div2k",
@@ -164,13 +163,6 @@ def main() -> None:
         for k, v in model.fit_metrics.items():
             print(f"  {k:<30}: {v:.6f}" if isinstance(v, float) else f"  {k}: {v}")
 
-    # Cleanly shut down DataLoader worker processes before hard-exiting.
-    # This releases semaphores and avoids the resource_tracker warning on macOS.
-    for loader in (train_loader, val_loader):
-        if hasattr(loader, "_iterator") and loader._iterator is not None:
-            loader._iterator._shutdown_workers()
-    del train_loader, val_loader
-    gc.collect()
     os._exit(0)
 
 

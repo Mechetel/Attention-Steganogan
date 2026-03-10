@@ -136,7 +136,7 @@ class EdgeGuidedDualStreamUNetEncoder(BaseEncoder):
         xC2, sC2 = self.G2C(xC1);    xE2, sE2 = self.G2E(xE1)
         xC3, sC3 = self.G3C(xC2);    xE3, sE3 = self.G3E(xE2)
         xC4, sC4 = self.G4C(xC3);    xE4, sE4 = self.G4E(xE3)
-        bC       = self.G5C(xC4);    bE        = self.G5E(xE4)
+        bC       = self.G5C(xC4);    bE       = self.G5E(xE4)
 
         # Expanding with cross-stream skip fusion
         g6 = self.G6(bE)

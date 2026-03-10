@@ -8,7 +8,6 @@ Supports two encoder modes transparently:
                Detected automatically via isinstance check.
 """
 
-import gc
 from typing import Dict, List, Optional
 
 import torch
@@ -105,7 +104,6 @@ class Trainer:
         self, cover: torch.Tensor
     ) -> tuple:
         """One WGAN critic gradient step.  Returns (cover_score, gen_score)."""
-        gc.collect()
         payload   = self._payload_factory.random(cover, self.data_depth)
         raw_out   = self.encoder(cover, payload)
         stego     = (raw_out[-1] if _is_iterative(raw_out) else raw_out).detach()
@@ -155,7 +153,6 @@ class Trainer:
         )
 
         for cover, _ in pbar:
-            gc.collect()
             cover = cover.to(self.device)
 
             # ── Critic update ────────────────────────────────────────────
@@ -210,7 +207,6 @@ class Trainer:
 
         with torch.no_grad():
             for cover, _ in pbar:
-                gc.collect()
                 cover = cover.to(self.device)
                 stego, payload, decoded, _ = self._encode_decode(cover, quantize=True)
 

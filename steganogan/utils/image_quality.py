@@ -31,8 +31,7 @@ class SSIMCalculator:
         sigma       : standard deviation
         """
         weights = torch.tensor(
-            [exp(-(x - window_size // 2) ** 2 / (2 * sigma ** 2))
-             for x in range(window_size)]
+            [exp(-(x - window_size // 2) ** 2 / (2 * sigma ** 2)) for x in range(window_size)]
         )
         return weights / weights.sum()
 
