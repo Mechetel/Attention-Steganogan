@@ -24,9 +24,16 @@ def print_model_info(model: SteganoGAN) -> None:
     print("Model")
     print("=" * 60)
     print(f"  {model}")
+    print(f"\n  Architecture:")
+    print(f"    Encoder : {model.encoder}")
+    print(f"    Decoder : {model.decoder}")
+    if model.critic is not None:
+        print(f"    Critic  : {model.critic}")
     print(f"\n  Parameters:")
     print(f"    Encoder : {p['encoder']:>12,}")
     print(f"    Decoder : {p['decoder']:>12,}")
+    if model.critic is not None:
+        print(f"    Critic  : {p['critic']:>12,}")
     print(f"    Total   : {p['total']:>12,}")
 
 

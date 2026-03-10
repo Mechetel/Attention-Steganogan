@@ -169,12 +169,13 @@ class Trainer:
                 loss = self._iter_loss(cover, payload, raw_out)
                 with torch.no_grad():
                     enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
-                        cover, stego, payload, decoded)
+                        cover, stego, payload, decoded
+                    )
             else:
                 enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
-                    cover, stego, payload, decoded)
-                gen_score = (self._critic_score(stego)
-                             if self.has_critic else None)
+                    cover, stego, payload, decoded
+                )
+                gen_score = (self._critic_score(stego) if self.has_critic else None)
                 loss = self._std_loss(cover, stego, payload, decoded, gen_score)
 
             self.optimizer.zero_grad()
@@ -211,23 +212,19 @@ class Trainer:
                 stego, payload, decoded, _ = self._encode_decode(cover, quantize=True)
 
                 enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
-                    cover, stego, payload, decoded)
+                    cover, stego, payload, decoded
+                )
 
                 metrics["val.encoder_mse"].append(enc_mse.item())
                 metrics["val.decoder_loss"].append(dec_loss.item())
                 metrics["val.decoder_acc"].append(dec_acc.item())
-                metrics["val.ssim"].append(
-                    SSIMCalculator.calculate(cover, stego).item())
-                metrics["val.psnr"].append(
-                    10.0 * torch.log10(4.0 / enc_mse).item())
-                metrics["val.rsbpp"].append(
-                    self.data_depth * (2.0 * dec_acc.item() - 1.0))
+                metrics["val.ssim"].append(SSIMCalculator.calculate(cover, stego).item())
+                metrics["val.psnr"].append(10.0 * torch.log10(4.0 / enc_mse).item())
+                metrics["val.rsbpp"].append(self.data_depth * (2.0 * dec_acc.item() - 1.0))
 
                 if self.has_critic:
-                    metrics["val.cover_score"].append(
-                        self._critic_score(cover).item())
-                    metrics["val.generated_score"].append(
-                        self._critic_score(stego).item())
+                    metrics["val.cover_score"].append(self._critic_score(cover).item())
+                    metrics["val.generated_score"].append(self._critic_score(stego).item())
 
                 pbar.set_postfix(
                     ssim=f"{metrics['val.ssim'][-1]:.4f}",

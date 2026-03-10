@@ -266,10 +266,11 @@ class SteganoGAN:
 
     @property
     def parameter_count(self) -> Dict[str, int]:
-        """Return dict with encoder / decoder / total parameter counts."""
+        """Return dict with encoder / decoder / critic / total parameter counts."""
         enc = sum(p.numel() for p in self.encoder.parameters())
         dec = sum(p.numel() for p in self.decoder.parameters())
-        return {"encoder": enc, "decoder": dec, "total": enc + dec}
+        crt = sum(p.numel() for p in self.critic.parameters()) if self.critic is not None else 0
+        return {"encoder": enc, "decoder": dec, "critic": crt, "total": enc + dec + crt}
 
     def __repr__(self) -> str:  # pragma: no cover
         p = self.parameter_count
