@@ -1,157 +1,128 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-SteganoGAN Testing Script
-Load a trained model and test encoding/decoding of secret messages in images.
+SteganoGAN inference test script.
+
+Loads a trained model and verifies encode → decode round-trips.
 """
 
 import os
-os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
-
+import sys
 import argparse
-from steganogan.steganogan import SteganoGAN
+from typing import List
+
+os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+
+from steganogan import SteganoGAN
 
 
-def test_encode_decode(steganogan, input_image, output_image, message):
-    """Test encoding and decoding a single message."""
-    if not os.path.exists(input_image):
-        print(f"Error: Input image '{input_image}' not found!")
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def print_model_info(model: SteganoGAN) -> None:
+    p = model.parameter_count
+    print(f"\n{'=' * 60}")
+    print("Model")
+    print("=" * 60)
+    print(f"  {model}")
+    print(f"\n  Parameters:")
+    print(f"    Encoder : {p['encoder']:>12,}")
+    print(f"    Decoder : {p['decoder']:>12,}")
+    print(f"    Total   : {p['total']:>12,}")
+
+
+def test_roundtrip(
+    model:        SteganoGAN,
+    cover_path:   str,
+    output_path:  str,
+    message:      str,
+) -> bool:
+    """Encode *message* into *cover_path*, decode it, return success flag."""
+    if not os.path.exists(cover_path):
+        print(f"  ✗ Cover image not found: {cover_path!r}")
         return False
 
-    print(f"\nEncoding message: '{message}'")
-    steganogan.encode(input_image, output_image, message)
-    print(f"Encoded image saved to: {output_image}")
-
-    print(f"Decoding message from: {output_image}")
-    decoded_message = steganogan.decode(output_image)
-    print(f"Decoded message: '{decoded_message}'")
-
-    if decoded_message == message:
-        print("✓ Message decoded correctly!")
-        return True
-    else:
-        print("✗ Warning: Decoded message differs from original")
-        return False
+    model.encode(cover_path, output_path, message)
+    decoded = model.decode(output_path)
+    ok = decoded == message
+    print(f"  {'✓' if ok else '✗'}  '{message[:60]}'"
+          + ("" if ok else f"\n      got: '{decoded[:60]}'"))
+    return ok
 
 
-def test_multiple_messages(steganogan, input_image, messages):
-    """Test encoding and decoding multiple messages."""
-    print("\n" + "="*60)
-    print("Testing Multiple Messages")
-    print("="*60)
+def test_batch(
+    model:      SteganoGAN,
+    cover_path: str,
+    messages:   List[str],
+) -> None:
+    """Run a batch of round-trip tests and print a summary."""
+    print(f"\n{'=' * 60}")
+    print(f"Batch test  ({len(messages)} messages)")
+    print("=" * 60)
 
-    if not os.path.exists(input_image):
-        print(f"Error: Input image '{input_image}' not found!")
+    if not os.path.exists(cover_path):
+        print(f"  ✗ Cover image not found: {cover_path!r}")
         return
 
     results = []
-    for i, message in enumerate(messages):
-        test_output = f'test_output_{i}.png'
+    for i, msg in enumerate(messages):
+        tmp = f"_test_tmp_{i}.png"
+        try:
+            ok = test_roundtrip(model, cover_path, tmp, msg)
+            results.append(ok)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
-        print(f"\nTest {i+1}/{len(messages)}: '{message}'")
-        steganogan.encode(input_image, test_output, message)
-        decoded = steganogan.decode(test_output)
-
-        success = decoded == message
-        status = "✓" if success else "✗"
-        print(f"{status} Decoded: '{decoded}'")
-        results.append(success)
-
-        # Clean up test file
-        if os.path.exists(test_output):
-            os.remove(test_output)
-
-    # Summary
-    total = len(results)
     passed = sum(results)
-    print(f"\n{'='*60}")
-    print(f"Results: {passed}/{total} tests passed")
-    print("="*60)
+    total  = len(results)
+    print(f"\n  Result: {passed}/{total} passed")
 
 
-def display_model_info(steganogan):
-    """Display model architecture information."""
-    print("\n" + "="*60)
-    print("Model Information")
-    print("="*60)
-    print(f"  Encoder type: {type(steganogan.encoder).__name__}")
-    print(f"  Decoder type: {type(steganogan.decoder).__name__}")
-    print(f"  Data depth: {steganogan.data_depth}")
-    print(f"  Device: {steganogan.device}")
-    print(f"  GPU acceleration: {steganogan.gpu}")
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
-    # Count parameters
-    encoder_params = sum(p.numel() for p in steganogan.encoder.parameters())
-    decoder_params = sum(p.numel() for p in steganogan.decoder.parameters())
-    total_params = encoder_params + decoder_params
-
-    print(f"\nModel Parameters:")
-    print(f"  Encoder: {encoder_params:,}")
-    print(f"  Decoder: {decoder_params:,}")
-    print(f"  Total: {total_params:,}")
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="SteganoGAN inference test")
+    p.add_argument("--model",         default="models/weights.steg")
+    p.add_argument("--gpu",           action="store_true", default=True)
+    p.add_argument("--input",         default="input.png")
+    p.add_argument("--output",        default="output.png")
+    p.add_argument("--message",       default="This is a super secret message!")
+    p.add_argument("--verbose",       action="store_true", default=True)
+    p.add_argument("--test-multiple", action="store_true")
+    return p.parse_args()
 
 
-def main():
-    """Main testing function."""
-    parser = argparse.ArgumentParser(description='Test SteganoGAN model')
-    parser.add_argument('--model', type=str, default='models/weights.steg',
-                        help='Path to trained model weights')
-    parser.add_argument('--gpu', action='store_true', default=True,
-                        help='Use GPU for testing if available')
-    parser.add_argument('--input', type=str, default='input.png',
-                        help='Input image path')
-    parser.add_argument('--output', type=str, default='output.png',
-                        help='Output image path')
-    parser.add_argument('--message', type=str, default='This is a super secret message!',
-                        help='Secret message to encode')
-    parser.add_argument('--verbose', action='store_true', default=True,
-                        help='Print verbose output')
-    parser.add_argument('--test-multiple', action='store_true',
-                        help='Run multiple message tests')
+def main() -> None:
+    args = parse_args()
 
-    args = parser.parse_args()
+    print("=" * 60)
+    print("SteganoGAN Inference Test")
+    print("=" * 60)
+    print(f"  model  : {args.model}")
+    print(f"  input  : {args.input}")
+    print(f"  output : {args.output}")
 
-    print("="*60)
-    print("SteganoGAN Testing")
-    print("="*60)
-    print(f"\nModel path: {args.model}")
-    print(f"Input image: {args.input}")
-    print(f"Output image: {args.output}")
-    print(f"Secret message: {args.message}")
+    model = SteganoGAN.load(args.model, gpu=args.gpu, verbose=args.verbose)
+    print_model_info(model)
 
-    # Load the model
-    print(f"\nLoading model...")
-    steganogan = SteganoGAN.load(
-        path=args.model,
-        gpu=args.gpu,
-        verbose=args.verbose
-    )
-    print("Model loaded successfully!")
+    print(f"\n{'=' * 60}")
+    print("Round-trip test")
+    print("=" * 60)
+    test_roundtrip(model, args.input, args.output, args.message)
 
-    # Display model information
-    display_model_info(steganogan)
-
-    # Test encoding and decoding
-    print("\n" + "="*60)
-    print("Encoding/Decoding Test")
-    print("="*60)
-    test_encode_decode(steganogan, args.input, args.output, args.message)
-
-    # Test with multiple messages if requested
     if args.test_multiple:
-        test_messages = [
+        test_batch(model, args.input, messages=[
             "Hello World!",
             "SteganoGAN is working!",
             "1234567890",
             "Testing multiple messages",
             "Short msg",
-        ]
-        test_multiple_messages(steganogan, args.input, test_messages)
+        ])
 
-    print("\n" + "="*60)
-    print("Testing Complete!")
-    print("="*60)
+    print(f"\n{'=' * 60}")
+    print("Done.")
+    print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
