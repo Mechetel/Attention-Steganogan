@@ -170,16 +170,14 @@ class Trainer:
 
             if _is_iterative(raw_out):
                 loss = self._iter_loss(cover, payload, raw_out)
-                with torch.no_grad():
-                    enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
-                        cover, stego, payload, decoded
-                    )
             else:
+                gen_score = (self._critic_score(stego) if self.has_critic else None)
+                loss = self._std_loss(cover, stego, payload, decoded, gen_score)
+
+            with torch.no_grad():
                 enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
                     cover, stego, payload, decoded
                 )
-                gen_score = (self._critic_score(stego) if self.has_critic else None)
-                loss = self._std_loss(cover, stego, payload, decoded, gen_score)
 
             self.optimizer.zero_grad()
             loss.backward()
