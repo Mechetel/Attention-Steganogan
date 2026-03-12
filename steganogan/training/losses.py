@@ -99,6 +99,13 @@ class IterativeLoss:
         T     = len(stego_list)
         total = torch.tensor(0.0, device=cover.device)
 
+        # critic(cover) is the same for every step; compute it once under
+        # no_grad (cover is a fixed input, not a learnable parameter).
+        critic_cover_score: Optional[torch.Tensor] = None
+        if self.critic is not None:
+            with torch.no_grad():
+                critic_cover_score = torch.mean(self.critic(cover))
+
         for t, S_t in enumerate(stego_list):
             weight  = self.gamma ** (T - 1 - t)     # most recent → weight 1
 
@@ -108,8 +115,7 @@ class IterativeLoss:
 
             L_C = torch.tensor(0.0, device=cover.device)
             if self.critic is not None:
-                L_C = (torch.mean(self.critic(S_t))
-                       - torch.mean(self.critic(cover)))
+                L_C = torch.mean(self.critic(S_t)) - critic_cover_score
 
             total = total + weight * (L_D + self.alpha * L_E + L_C)
 

@@ -105,7 +105,10 @@ class Trainer:
     ) -> tuple:
         """One WGAN critic gradient step.  Returns (cover_score, gen_score)."""
         payload   = self._payload_factory.random(cover, self.data_depth)
-        raw_out   = self.encoder(cover, payload)
+        # The encoder output is detached before the critic sees it, so we do
+        # not need to retain its computation graph during the forward pass.
+        with torch.no_grad():
+            raw_out = self.encoder(cover, payload)
         stego     = (raw_out[-1] if _is_iterative(raw_out) else raw_out).detach()
 
         cover_score = self._critic_score(cover)

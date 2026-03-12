@@ -128,6 +128,18 @@ class EdgeGuidedDualStreamUNetEncoder(BaseEncoder):
         grad_mag = (Gx ** 2 + Gy ** 2 + 1e-8).sqrt().view(N, C, H, W)
         return (image + self.sobel_alpha * grad_mag).clamp(-1.0, 1.0)
 
+    @staticmethod
+    def _pad_to_multiple(x: torch.Tensor, multiple: int = 16):
+        """Pad spatial dims to the next multiple of *multiple* (bottom/right).
+        Returns (padded_tensor, (original_H, original_W)).
+        """
+        _, _, H, W = x.shape
+        pH = (multiple - H % multiple) % multiple
+        pW = (multiple - W % multiple) % multiple
+        if pH or pW:
+            x = F.pad(x, (0, pW, 0, pH), mode="reflect")
+        return x, (H, W)
+
     def _unet_forward(self, cover: torch.Tensor,
                       edge: torch.Tensor) -> torch.Tensor:
         """Dual-stream U-Net; returns (N, 3, H, W) feature map."""
@@ -192,7 +204,17 @@ class EdgeGuidedDualStreamUNetEncoder(BaseEncoder):
         if training is None:
             training = self.training
 
-        edge     = self._sobel_enhance(cover)
-        unet_out = self._unet_forward(cover, edge)
-        features = self.dense_fusion(unet_out, payload)
-        return self._iterative_refine(cover, features, training)
+        # Pad to a multiple of 16 so every max-pool/deconv pair is exact;
+        # crop back to the original size after the U-Net.
+        cover_p, (H, W) = self._pad_to_multiple(cover)
+        payload_p, _    = self._pad_to_multiple(payload)
+
+        edge     = self._sobel_enhance(cover_p)
+        unet_out = self._unet_forward(cover_p, edge)
+        features = self.dense_fusion(unet_out, payload_p)
+        result   = self._iterative_refine(cover_p, features, training)
+
+        # Crop padding away
+        if isinstance(result, list):
+            return [s[..., :H, :W] for s in result]
+        return result[..., :H, :W]

@@ -57,7 +57,7 @@ CONFIG: Dict[str, Any] = {
     "epochs":        32,
     "batch_size":    8,
     "num_workers":   8,
-    "crop_size":     360,          # 400 for edge_unet, 360 for others
+    "crop_size":     360,
 
     # Data paths
     "dataset":       "div2k",
