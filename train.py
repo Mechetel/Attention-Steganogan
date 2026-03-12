@@ -61,7 +61,8 @@ CONFIG: Dict[str, Any] = {
 
     # Data paths
     "dataset":       "div2k",
-    "data_root":     os.path.expanduser("~/Projects/datasets"), # os.path.expanduser("~/Attention-Steganogan/data"),
+    # "data_root":     os.path.expanduser("~/Projects/datasets"),
+    "data_root":     os.path.expanduser("~/Attention-Steganogan/data"),
 
     # EdgeGuidedDualStreamUNetEncoder hyper-parameters
     # "T":             10,            # ConvGRU iterations
