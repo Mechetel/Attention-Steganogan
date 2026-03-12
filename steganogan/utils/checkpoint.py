@@ -81,6 +81,12 @@ class ModelCheckpoint:
             modules.append(model.critic)
         device_mgr.to_device(*modules)
 
+        # Sync device on any serialised sub-services that cache it
+        for svc in ("_payload_factory", "_encoder_svc", "_decoder_svc", "_trainer"):
+            obj = getattr(model, svc, None)
+            if obj is not None and hasattr(obj, "device"):
+                obj.device = device_mgr.device
+
         if verbose:
             print("Checkpoint loaded successfully.")
         return model

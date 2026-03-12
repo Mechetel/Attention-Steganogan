@@ -107,7 +107,7 @@ def test_batch(
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="SteganoGAN inference test")
     p.add_argument("--model",         default="models/weights.steg")
-    p.add_argument("--gpu",           action="store_true", default=True)
+    p.add_argument("--gpu",           action="store_true", default=False)
     p.add_argument("--input",         default="input.png")
     p.add_argument("--output",        default="output.png")
     p.add_argument("--message",       default="This is a super secret message!")
