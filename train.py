@@ -9,7 +9,7 @@ Supports all encoder variants, including:
 Paper-recommended settings to reproduce Div2K results:
   encoder    : 'edge_unet'    data_depth : 1
   batch_size : 2              epochs     : 100
-  T=10, eta=1.0, gamma=0.8, alpha=1.0, image_size=360
+  T=10, eta=1.0, gamma=0.8, alpha=100.0, image_size=360
 """
 
 import gc
@@ -68,7 +68,7 @@ CONFIG: Dict[str, Any] = {
     # "T":             10,            # ConvGRU iterations
     # "eta":           1.0,           # perturbation step size
     # "gamma":         0.8,           # iterative loss decay factor
-    # "alpha":         1.0,           # image-quality loss weight
+    # "alpha":         100.0,         # image-quality loss weight
     # "sobel_alpha":   1.0,           # edge enhancement strength
     # "hidden_ch":     32,            # ConvGRU hidden channels
 }

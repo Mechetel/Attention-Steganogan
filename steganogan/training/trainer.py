@@ -68,7 +68,7 @@ class Trainer:
         self._iter_loss       = IterativeLoss(
             decoder=decoder,
             gamma=getattr(encoder, "gamma", 0.8),
-            alpha=getattr(encoder, "alpha", 1.0),
+            alpha=getattr(encoder, "alpha", 100.0),
             critic=critic,
         )
 

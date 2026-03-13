@@ -67,7 +67,7 @@ class IterativeLoss:
     ----------
     decoder    : decoder module (produces logits from a stego image)
     gamma      : per-step discount factor  (0 < γ ≤ 1, default 0.8)
-    alpha      : image-quality loss weight (default 1.0)
+    alpha      : image-quality loss weight (default 100.0)
     critic     : optional critic module for adversarial loss term
     """
 
@@ -75,7 +75,7 @@ class IterativeLoss:
         self,
         decoder: nn.Module,
         gamma:   float = 0.8,
-        alpha:   float = 1.0,
+        alpha:   float = 100.0,
         critic:  Optional[nn.Module] = None,
     ) -> None:
         self.decoder = decoder

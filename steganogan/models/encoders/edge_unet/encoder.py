@@ -41,7 +41,7 @@ class EdgeGuidedDualStreamUNetEncoder(BaseEncoder):
     T           : GRU optimisation iterations (default 10)
     eta         : perturbation step size η (default 1.0)
     gamma       : iterative loss decay factor γ (default 0.8)
-    alpha       : image-quality loss weight α (default 1.0)
+    alpha       : image-quality loss weight α (default 100.0)
     sobel_alpha : edge enhancement strength α in Eq. 1 (default 1.0)
     hidden_ch   : ConvGRU hidden channels (default 32)
     """
@@ -52,7 +52,7 @@ class EdgeGuidedDualStreamUNetEncoder(BaseEncoder):
         T:           int   = 10,
         eta:         float = 1.0,
         gamma:       float = 0.8,
-        alpha:       float = 1.0,
+        alpha:       float = 100.0,
         sobel_alpha: float = 1.0,
         hidden_ch:   int   = 32,
     ) -> None:

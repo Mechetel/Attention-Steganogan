@@ -47,7 +47,7 @@ class TrainingManager:
         # Iterative-loss hyper-params (mirrors encoder defaults; overridden if
         # the encoder exposes these attributes directly)
         self._gamma = getattr(encoder, 'gamma', 0.8)
-        self._alpha = getattr(encoder, 'alpha', 1.0)
+        self._alpha = getattr(encoder, 'alpha', 100.0)
 
     # ── Properties ───────────────────────────────────────────────────────────
 
