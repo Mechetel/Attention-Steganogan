@@ -1,0 +1,19 @@
+{
+  "gpu": true,
+  "encoder": "edge_unet",
+  "decoder": "dense",
+  "critic": true,
+  "data_depth": 1,
+  "epochs": 32,
+  "batch_size": 8,
+  "num_workers": 8,
+  "crop_size": 360,
+  "dataset": "div2k",
+  "data_root": "/root/Attention-Steganogan/data",
+  "T": 10,
+  "eta": 1.0,
+  "gamma": 0.8,
+  "alpha": 1.0,
+  "sobel_alpha": 1.0,
+  "hidden_ch": 32
+}
