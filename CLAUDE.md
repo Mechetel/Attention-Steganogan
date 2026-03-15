@@ -1,71 +1,58 @@
-# Attention-Steganogan Project Context
+# Attention-SteganoGAN — PhD Dissertation Project
 
 ## Project Overview
-This is a PhD dissertation project implementing Steganogan with attention mechanisms for image steganography. The goal is to develop a neural network architecture that can hide images within images with improved capacity and security using attention mechanisms.
 
-## Core Research References
+Image steganography system based on deep learning. Embeds secret binary messages into cover images producing visually imperceptible stego images.
 
-### 1. **SteganoGAN.pdf**
-Foundation paper on SteganoGAN - adversarial approach to image steganography using GANs. Covers:
-- GAN-based steganography framework
-- Generator and discriminator architecture
-- Adversarial training for natural-looking stego images
+## Architecture Variants
 
-**Location:** `/Users/dmitryhoma/Desktop/steganogan attention articles/SteganoGAN.pdf`
+### Encoders
+- **BasicEncoder / ResidualEncoder / DenseEncoder** — Original SteganoGAN architectures (Zhang et al., 2019)
+- **EdgeGuidedDualStreamUNetEncoder** — Dual-stream U-Net with MSMA attention + InceptionDMK + ConvGRU iterative refinement (Ji, Zhang, Lv — Applied Sciences 2025)
+- **EdgeAwareDenseASPPEncoder** — Novel: DenseASPP backbone + MSMA + learned EdgeNet + edge-masked ConvGRU refinement. Concentrates data embedding in edge regions.
 
-### 2. **Steganogan Unet + SA.pdf**
-Hybrid architecture combining UNet with Self-Attention (SA) mechanisms. Key contributions:
-- UNet encoder-decoder for improved image processing
-- Self-attention modules for better feature learning
-- Enhanced capacity while maintaining invisibility
+### Decoders
+- **BasicDecoder / DenseDecoder** — Original SteganoGAN decoders
+- **EdgeAwareDenseDecoder** — Edge-aware decoder with lightweight DenseASPP + MSMA attention
 
-**Location:** `/Users/dmitryhoma/Desktop/steganogan attention articles/Steganogan Unet + SA.pdf`
+### Critics
+- **BasicCritic** — Original WGAN critic with weight clipping
+- **MultiScaleEdgeAwareCritic** — Multi-scale (3 scales) with spectral normalisation and Sobel edge input
 
-### 3. **HCISNet_Higher-capacity_invisible_image_steganogra.pdf**
-Higher-Capacity Invisible Steganography Network (HCISNet). Focuses on:
-- Increasing capacity for hidden data while maintaining imperceptibility
-- Advanced network architectures for steganography
-- Attention mechanisms for capacity enhancement
+## Reference Papers
+1. **SteganoGAN** — Zhang et al. "SteganoGAN: High Capacity Image Steganography with GANs" (2019)
+2. **HCISNet** — "Higher-Capacity Invisible Image Steganographic Network" — Enhanced DenseASPP encoder
+3. **Edge-Guided U-Net** — Ji, Zhang, Lv "Edge-Guided Dual-Stream U-Net for Secure Image Steganography" (Applied Sciences 2025) — MSMA + InceptionDMK + ConvGRU
 
-**Location:** `/Users/dmitryhoma/Desktop/steganogan attention articles/HCISNet_Higher-capacity_invisible_image_steganogra.pdf`
+## Key Design Decisions
+- Images normalised to [-1, 1] range throughout
+- Iterative encoders return `List[Tensor]` during training, single `Tensor` during inference
+- WGAN training: critic trains 5 steps per encoder step
+- EdgeNet trained end-to-end (no pretrained edge detection) with Sobel regularisation (λ=0.01)
+- Edge mask uses epsilon floor (0.05) to prevent dead gradients in flat regions
 
-## Key Implementation Areas
-
-### Model Architecture
-- `steganogan/` - Main implementation directory
-- Focus: GAN-based generator and discriminator with attention mechanisms
-- UNet backbone with self-attention blocks
-
-### Training & Testing
-- `train.py` / `train.ipynb` - Model training pipeline
-- `test.py` / `test.ipynb` - Evaluation and testing
-- Loss functions: image quality (MSE), adversarial loss, capacity metrics
-
-### Data
-- `data/` - Dataset directory for input/secret images
-- Input/output samples in project root (input.png, output.png)
-
-## Important Notes for Development
-
-1. **Attention Mechanisms** - Core innovation: use self-attention in encoder/decoder paths
-2. **Loss Balancing** - Image quality loss weight currently set to 100 for MSE
-3. **Capacity vs. Quality Trade-off** - Balance between hidden data capacity and stego image invisibility
-4. **No-grad Operations** - Coding scores computed with `no_grad()` for efficiency
-5. **Model Checkpoints** - Trained dense model weights available in `models/`
-
-## Useful Commands
-
+## Training
 ```bash
-# Train model
 python train.py
-
-# Test/evaluate
-python test.py
-
-# Interactive notebook
-jupyter notebook train.ipynb
 ```
+Configure architecture choice and hyperparameters in `CONFIG` dict at top of `train.py`.
 
----
-
-*These research papers form the theoretical foundation for the Attention-Steganogan implementation and should be referenced when making architectural decisions.*
+## Project Structure
+```
+steganogan/
+├── models/
+│   ├── base.py                    # BaseEncoder, BaseDecoder, BaseCritic ABCs
+│   ├── encoders/
+│   │   ├── basic.py               # BasicEncoder, ResidualEncoder, DenseEncoder
+│   │   ├── edge_unet/             # EdgeGuidedDualStreamUNetEncoder
+│   │   └── edge_aspp/             # EdgeAwareDenseASPPEncoder (novel)
+│   ├── decoders/decoders.py       # All decoder variants
+│   └── critics/critics.py        # All critic variants
+├── training/
+│   ├── trainer.py                 # Training loop
+│   ├── losses.py                  # Loss functions (incl. VGGPerceptualLoss)
+│   └── metrics.py                 # PSNR, SSIM, RSBPP metrics
+├── data/                          # Dataset, DataLoader, transforms
+├── inference/                     # Encode/decode services
+└── utils/                         # Payload, checkpoints, visualisation
+```

@@ -5,11 +5,18 @@ SteganoGAN training script.
 
 Supports all encoder variants, including:
   EdgeGuidedDualStreamUNetEncoder  (Ji, Zhang, Lv – Applied Sciences 2025)
+  EdgeAwareDenseASPPEncoder        (Novel: DenseASPP + MSMA + learned edge detection)
 
 Paper-recommended settings to reproduce Div2K results:
   encoder    : 'edge_unet'    data_depth : 1
   batch_size : 2              epochs     : 100
   T=10, eta=1.0, gamma=0.8, alpha=100.0, image_size=360
+
+Edge-aware DenseASPP settings:
+  encoder    : 'edge_aspp'    data_depth : 1
+  decoder    : 'edge_aware_dense'
+  critic     : 'multiscale_edge'
+  T=8, eta=1.0, gamma=0.8, alpha=100.0, hidden_ch=48
 """
 
 import gc
@@ -38,6 +45,9 @@ from steganogan.models import (
     BasicDecoder, DenseDecoder,
     BasicCritic,
 )
+from steganogan.models.encoders.edge_aspp import EdgeAwareDenseASPPEncoder
+from steganogan.models.decoders.decoders import EdgeAwareDenseDecoder
+from steganogan.models.critics.critics import MultiScaleEdgeAwareCritic
 from steganogan.data import DataLoaderFactory
 
 
@@ -48,9 +58,9 @@ CONFIG: Dict[str, Any] = {
     "gpu":           True,         # True | False
 
     # Architecture
-    "encoder":       "dense",       # basic | residual | dense | edge_unet
-    "decoder":       "dense",       # basic | dense
-    "critic":        True,          # True | False (if True, adds a critic network for adversarial training)
+    "encoder":       "dense",       # basic | residual | dense | edge_unet | edge_aspp
+    "decoder":       "dense",       # basic | dense | edge_aware_dense
+    "critic":        "basic",       # basic | multiscale_edge | False
 
     # Training
     "data_depth":    1,             # bits per pixel
@@ -71,6 +81,16 @@ CONFIG: Dict[str, Any] = {
     # "alpha":         100.0,         # image-quality loss weight
     # "sobel_alpha":   1.0,           # edge enhancement strength
     # "hidden_ch":     32,            # ConvGRU hidden channels
+
+    # EdgeAwareDenseASPPEncoder hyper-parameters
+    # "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
+    # "eta":           1.0,           # perturbation step size
+    # "gamma":         0.8,           # iterative loss decay factor
+    # "alpha":         100.0,         # image-quality loss weight
+    # "hidden_ch":     48,            # ConvGRU hidden channels
+    # "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
+    # "lambda_edge":   0.01,          # edge regularisation weight
+    # "lambda_vgg":    0.1,           # VGG perceptual loss weight
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
@@ -91,11 +111,34 @@ def _build_encoder(cfg: Dict[str, Any]) -> torch.nn.Module:
             sobel_alpha = cfg["sobel_alpha"],
             hidden_ch   = cfg["hidden_ch"],
         )
+    elif choice == "edge_aspp":
+        enc = EdgeAwareDenseASPPEncoder(
+            data_depth   = d,
+            T            = cfg.get("T", 8),
+            eta          = cfg.get("eta", 1.0),
+            gamma        = cfg.get("gamma", 0.8),
+            alpha        = cfg.get("alpha", 100.0),
+            hidden_ch    = cfg.get("hidden_ch", 48),
+            edge_epsilon = cfg.get("edge_epsilon", 0.05),
+        )
+        # Store loss weights on encoder for Trainer to pick up
+        enc.lambda_edge = cfg.get("lambda_edge", 0.01)
+        enc.lambda_vgg  = cfg.get("lambda_vgg", 0.1)
+        return enc
     else:
         raise ValueError(f"Unknown encoder: {choice!r}")
 
 
-_DECODER_MAP = {"basic": BasicDecoder, "dense": DenseDecoder}
+_DECODER_MAP = {
+    "basic": BasicDecoder,
+    "dense": DenseDecoder,
+    "edge_aware_dense": EdgeAwareDenseDecoder,
+}
+
+_CRITIC_MAP = {
+    "basic": BasicCritic,
+    "multiscale_edge": MultiScaleEdgeAwareCritic,
+}
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -134,11 +177,20 @@ def main() -> None:
     with open(os.path.join(log_dir, "config.json"), "w") as f:
         json.dump(CONFIG, f, indent=2)
 
+    # Resolve critic: string key → class, False/None → None, True → BasicCritic
+    critic_choice = CONFIG["critic"]
+    if isinstance(critic_choice, str):
+        critic_cls = _CRITIC_MAP[critic_choice]
+    elif critic_choice is True:
+        critic_cls = BasicCritic
+    else:
+        critic_cls = None
+
     model = SteganoGAN(
         data_depth = CONFIG["data_depth"],
         encoder    = _build_encoder(CONFIG),
         decoder    = _DECODER_MAP[CONFIG["decoder"]],
-        critic     = BasicCritic if CONFIG["critic"] else None,
+        critic     = critic_cls,
         gpu        = CONFIG["gpu"],
         verbose    = True,
         log_dir    = log_dir,

@@ -15,10 +15,11 @@ import torch.nn as nn
 from torch.optim import Adam
 from tqdm import tqdm
 
-from .losses  import SteganographyLoss, IterativeLoss
+from .losses  import SteganographyLoss, IterativeLoss, EdgeAwareIterativeLoss
 from .metrics import SteganographyMetrics
 from ..utils.payload      import PayloadFactory
 from ..utils.image_quality import SSIMCalculator
+from ..models.critics.critics import MultiScaleEdgeAwareCritic
 
 
 def _is_iterative(output) -> bool:
@@ -72,6 +73,19 @@ class Trainer:
             critic=critic,
         )
 
+        # Edge-aware iterative loss (for EdgeAwareDenseASPPEncoder)
+        self._edge_iter_loss = EdgeAwareIterativeLoss(
+            decoder=decoder,
+            gamma=getattr(encoder, "gamma", 0.8),
+            alpha=getattr(encoder, "alpha", 100.0),
+            critic=critic,
+            lambda_edge=getattr(encoder, "lambda_edge", 0.01),
+            lambda_vgg=getattr(encoder, "lambda_vgg", 0.1),
+        ).to(device)
+
+        # Detect if critic uses spectral norm (no weight clipping needed)
+        self._critic_uses_spectral_norm = isinstance(critic, MultiScaleEdgeAwareCritic)
+
     # ── Properties ───────────────────────────────────────────────────────────
 
     @property
@@ -118,8 +132,12 @@ class Trainer:
         (gen_score - cover_score).backward()
         self.critic_optimizer.step()
 
-        for p in self.critic.parameters():
-            p.data.clamp_(-0.1, 0.1)
+        # Weight clipping for standard WGAN critics only.
+        # Spectral-norm critics (MultiScaleEdgeAwareCritic) enforce the
+        # Lipschitz constraint via spectral normalisation on each conv layer.
+        if not self._critic_uses_spectral_norm:
+            for p in self.critic.parameters():
+                p.data.clamp_(-0.1, 0.1)
 
         return cover_score.item(), gen_score.item()
 
@@ -169,7 +187,12 @@ class Trainer:
             stego, payload, decoded, raw_out = self._encode_decode(cover)
 
             if _is_iterative(raw_out):
-                loss = self._iter_loss(cover, payload, raw_out)
+                # Use edge-aware loss if encoder provides an edge map
+                edge_map = getattr(self.encoder, "_last_edge_map", None)
+                if edge_map is not None:
+                    loss = self._edge_iter_loss(cover, payload, raw_out, edge_map)
+                else:
+                    loss = self._iter_loss(cover, payload, raw_out)
             else:
                 gen_score = (self._critic_score(stego) if self.has_critic else None)
                 loss = self._std_loss(cover, stego, payload, decoded, gen_score)
