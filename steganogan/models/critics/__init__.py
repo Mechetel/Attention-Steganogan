@@ -1,2 +1,2 @@
 from .critics import BasicCritic
-__all__ = ["BasicCritic"]
+__all__ = ["BasicCritic", "MultiScaleEdgeAwareCritic"]

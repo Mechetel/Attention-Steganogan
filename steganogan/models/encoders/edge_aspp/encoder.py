@@ -24,7 +24,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...base import BaseEncoder
-from ..edge_unet.recurrent import ConvGRUCell, PerturbationNetwork
+from .recurrent import ConvGRUCell, PerturbationNetwork
 from .edge_net import EdgeNet
 from .dense_aspp import DenseASPPBackbone
 from .edge_fusion import EdgeAwareDenseMessageFusion

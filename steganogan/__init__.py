@@ -14,8 +14,8 @@ from .models    import (
     BaseEncoder, BaseDecoder, BaseCritic,
     BasicEncoder, ResidualEncoder, DenseEncoder,
     EdgeGuidedDualStreamUNetEncoder,
-    BasicDecoder, DenseDecoder,
-    BasicCritic,
+    BasicDecoder, DenseDecoder, EdgeAwareDenseDecoder,
+    BasicCritic, MultiScaleEdgeAwareCritic,
 )
 from .data      import TransformFactory, SteganographyDataset
 from .data      import SteganographyDataLoader, DataLoaderFactory

@@ -93,10 +93,12 @@ class MultiScaleEdgeAwareCritic(BaseCritic):
 
         # Fixed Sobel kernels for edge extraction
         Kx = torch.tensor(
-            [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=torch.float32
+            [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+            dtype=torch.float32
         ).view(1, 1, 3, 3)
         Ky = torch.tensor(
-            [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=torch.float32
+            [[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+            dtype=torch.float32
         ).view(1, 1, 3, 3)
         self.register_buffer("Kx", Kx)
         self.register_buffer("Ky", Ky)
