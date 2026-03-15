@@ -2,8 +2,9 @@
 """
 Decoder architectures for SteganoGAN.
 
-  BasicDecoder : 3-layer CNN
-  DenseDecoder : DenseNet-style with dense skip connections
+  BasicDecoder           : 3-layer CNN
+  DenseDecoder           : DenseNet-style with dense skip connections
+  EdgeAwareDenseDecoder  : Edge-aware decoder with lightweight DenseASPP + MSMA
 """
 
 import torch
@@ -11,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..base import BaseDecoder
+from ..encoders.edge_unet.attention import MSMAModule
 
 
 class BasicDecoder(BaseDecoder):
@@ -66,3 +68,109 @@ class DenseDecoder(BaseDecoder):
         x2 = F.leaky_relu(self.bn2(self.conv2(x1)), inplace=True)
         x3 = F.leaky_relu(self.bn3(self.conv3(torch.cat([x1, x2], dim=1))), inplace=True)
         return self.out(torch.cat([x1, x2, x3], dim=1))
+
+
+class EdgeAwareDenseDecoder(BaseDecoder):
+    """
+    Edge-aware decoder with lightweight DenseASPP and MSMA attention.
+
+    Learns its own edge map from the stego image to determine WHERE
+    data was embedded, then uses a lightweight DenseASPP (2 dilated
+    branches) + dense decode layers for extraction.
+
+    Improvements over DenseDecoder:
+      - Edge estimation branch guides extraction to edge regions
+      - Lightweight DenseASPP (dilation rates 3, 6) for multi-scale context
+      - MSMA attention for channel/spatial recalibration
+      - 48 channels (vs 32) for more representational capacity
+
+    Input : stego  (N, 3, H, W)
+    Output: logits (N, D, H, W)
+
+    Parameters
+    ----------
+    data_depth : bits per pixel (D)
+    """
+
+    def __init__(self, data_depth: int) -> None:
+        super().__init__(data_depth)
+
+        ch = 48  # main feature channel width
+
+        # ── Edge estimation branch ──────────────────────────────────────
+        self.edge_branch = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+        )
+
+        # ── Stem + MSMA (input: stego 3ch + edge_map 1ch = 4ch) ────────
+        self.stem = nn.Sequential(
+            nn.Conv2d(4, ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.msma = MSMAModule(ch)
+
+        # ── Lightweight DenseASPP (2 branches) ──────────────────────────
+        branch_ch = 32
+        self.aspp_d3 = nn.Sequential(
+            nn.Conv2d(ch, branch_ch, kernel_size=3,
+                      padding=3, dilation=3, bias=False),
+            nn.BatchNorm2d(branch_ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.aspp_d6 = nn.Sequential(
+            nn.Conv2d(ch + branch_ch, branch_ch, kernel_size=3,
+                      padding=6, dilation=6, bias=False),
+            nn.BatchNorm2d(branch_ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        # Reduce: ch + 2*branch_ch = 112 → ch
+        self.reduce = nn.Sequential(
+            nn.Conv2d(ch + 2 * branch_ch, ch, kernel_size=1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        # ── Dense decode layers ─────────────────────────────────────────
+        self.dec1 = nn.Sequential(
+            nn.Conv2d(ch, ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.dec2 = nn.Sequential(
+            nn.Conv2d(2 * ch, ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.dec3 = nn.Sequential(
+            nn.Conv2d(3 * ch, ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        # ── Output projection ───────────────────────────────────────────
+        self.out = nn.Conv2d(3 * ch, data_depth, kernel_size=3, padding=1)
+
+    def forward(self, stego: torch.Tensor) -> torch.Tensor:
+        # Edge estimation
+        edge_map = self.edge_branch(stego)                      # (N, 1, H, W)
+        augmented = torch.cat([stego, edge_map], dim=1)         # (N, 4, H, W)
+
+        # Stem + MSMA
+        f0 = self.msma(self.stem(augmented))                    # (N, 48, H, W)
+
+        # Lightweight DenseASPP
+        d1 = self.aspp_d3(f0)                                   # (N, 32, H, W)
+        d2 = self.aspp_d6(torch.cat([f0, d1], dim=1))           # (N, 32, H, W)
+        f1 = self.reduce(torch.cat([f0, d1, d2], dim=1))        # (N, 48, H, W)
+
+        # Dense decode layers
+        h1 = self.dec1(f1)                                      # (N, 48, H, W)
+        h2 = self.dec2(torch.cat([f1, h1], dim=1))              # (N, 48, H, W)
+        h3 = self.dec3(torch.cat([f1, h1, h2], dim=1))          # (N, 48, H, W)
+
+        return self.out(torch.cat([h1, h2, h3], dim=1))         # (N, D, H, W)
