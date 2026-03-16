@@ -95,6 +95,26 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
+    def _gru_step(
+        self,
+        delta:    torch.Tensor,
+        features: torch.Tensor,
+        edge_map: torch.Tensor,
+        h_prev:   torch.Tensor,
+    ) -> torch.Tensor:
+        """One GRU step including x_t construction and perturbation.
+
+        Wrapped as a single checkpoint unit so x_t (71ch × batch × H × W)
+        is never stored between steps — it is reconstructed during backward.
+        Saves ~297 MB × T per training step at batch=8, 360².
+        Returns (h_t, raw_pert) packed as a tuple.
+        """
+        grad_delta = torch.zeros_like(delta)
+        x_t        = torch.cat([delta, grad_delta, features, edge_map], dim=1)
+        h_t        = self.gru_cell(x_t, h_prev)
+        raw_pert   = self.perturb_net(h_t)
+        return h_t, raw_pert
+
     def _iterative_refine(
         self,
         cover:    torch.Tensor,
@@ -116,32 +136,31 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
         """
         N, _, H, W = cover.shape
         delta = torch.zeros_like(cover)
-        h_t = torch.zeros(
+        h_t   = torch.zeros(
             N, self._hidden_ch, H, W,
             device=cover.device, dtype=cover.dtype,
         )
         stego_list: List[torch.Tensor] = []
 
         # Pre-compute 3-channel edge mask with epsilon floor
-        eps = self.edge_epsilon
+        eps          = self.edge_epsilon
         edge_mask_3ch = eps + (1.0 - eps) * edge_map.expand(-1, 3, -1, -1)
 
         for _ in range(self.T):
-            grad_delta = torch.zeros_like(delta)
-            x_t = torch.cat([delta, grad_delta, features, edge_map], dim=1)
-
-            # Checkpoint each GRU step: saves the 3 gate tensors (update,
-            # reset, candidate) per step — ~550 MB × T at batch=8, 360².
             if training:
-                h_t = checkpoint(self.gru_cell, x_t, h_t, use_reentrant=False)
-                raw_pert = checkpoint(self.perturb_net, h_t, use_reentrant=False)
+                # Single checkpoint boundary: x_t construction + GRU + perturb.
+                # Inputs stored: delta(3ch), features(64ch), edge_map(1ch), h_prev(48ch).
+                # NOT stored: x_t(71ch) — reconstructed on backward. Saves ~297 MB/step.
+                h_t, raw_pert = checkpoint(
+                    self._gru_step, delta, features, edge_map, h_t,
+                    use_reentrant=False,
+                )
             else:
-                h_t = self.gru_cell(x_t, h_t)
-                raw_pert = self.perturb_net(h_t)
+                h_t, raw_pert = self._gru_step(delta, features, edge_map, h_t)
 
             masked_pert = raw_pert * edge_mask_3ch
-            delta = delta + self.eta * masked_pert
-            S_t = (cover + delta).clamp(-1.0, 1.0)
+            delta       = delta + self.eta * masked_pert
+            S_t         = (cover + delta).clamp(-1.0, 1.0)
 
             if training:
                 stego_list.append(S_t)

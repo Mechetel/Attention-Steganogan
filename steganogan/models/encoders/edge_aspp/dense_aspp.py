@@ -138,14 +138,15 @@ class DenseASPPBackbone(nn.Module):
         -------
         features : (N, out_ch, H, W)
         """
-        use_ckpt = self.training and x.requires_grad
+        if self.training:
+            # x.requires_grad may be False (cover image has no grad) but the
+            # model parameters do, so we still need to store intermediate
+            # activations for parameter gradients. Checkpoint by training mode
+            # only — not by requires_grad on the input.
+            f_att   = checkpoint(self._stem_forward,   x,       use_reentrant=False)
+            cat_all = checkpoint(self._aspp_forward,   f_att,   use_reentrant=False)
+            return    checkpoint(self._reduce_forward,  cat_all, use_reentrant=False)
 
-        if use_ckpt:
-            f_att   = checkpoint(self._stem_forward,  x,      use_reentrant=False)
-            cat_all = checkpoint(self._aspp_forward,  f_att,  use_reentrant=False)
-            return    checkpoint(self._reduce_forward, cat_all, use_reentrant=False)
-
-        # Inference path — no checkpointing needed (no backward).
         f_att   = self._stem_forward(x)
         cat_all = self._aspp_forward(f_att)
         return self._reduce_forward(cat_all)
