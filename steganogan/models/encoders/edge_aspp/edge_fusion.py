@@ -12,6 +12,7 @@ connections ensure every fusion layer has direct access to all inputs.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 
 class EdgeAwareDenseMessageFusion(nn.Module):
@@ -64,6 +65,19 @@ class EdgeAwareDenseMessageFusion(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
         )
 
+    def _forward_impl(
+        self,
+        features: torch.Tensor,
+        payload: torch.Tensor,
+        edge_map: torch.Tensor,
+    ) -> torch.Tensor:
+        f_edge = features * edge_map
+        base   = torch.cat([features, f_edge, payload, edge_map], dim=1)
+        h1     = self.conv1(base)
+        h2     = self.conv2(torch.cat([h1, base], dim=1))
+        h3     = self.conv3(torch.cat([h2, h1, base], dim=1))
+        return h3
+
     def forward(
         self,
         features: torch.Tensor,
@@ -81,15 +95,7 @@ class EdgeAwareDenseMessageFusion(nn.Module):
         -------
         fused : (N, out_ch, H, W)
         """
-        # Edge-gated features: emphasise edge regions
-        f_edge = features * edge_map
-
-        # Base concatenation
-        base = torch.cat([features, f_edge, payload, edge_map], dim=1)
-
-        # Dense fusion layers
-        h1 = self.conv1(base)
-        h2 = self.conv2(torch.cat([h1, base], dim=1))
-        h3 = self.conv3(torch.cat([h2, h1, base], dim=1))
-
-        return h3
+        if self.training and features.requires_grad:
+            return checkpoint(self._forward_impl, features, payload, edge_map,
+                              use_reentrant=False)
+        return self._forward_impl(features, payload, edge_map)

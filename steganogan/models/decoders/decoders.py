@@ -10,6 +10,7 @@ Decoder architectures for SteganoGAN.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from ..base import BaseDecoder
 from ..encoders.edge_unet.attention import MSMAModule
@@ -155,22 +156,21 @@ class EdgeAwareDenseDecoder(BaseDecoder):
         # ── Output projection ───────────────────────────────────────────
         self.out = nn.Conv2d(3 * ch, data_depth, kernel_size=3, padding=1)
 
+    def _forward_impl(self, stego: torch.Tensor) -> torch.Tensor:
+        edge_map  = self.edge_branch(stego)
+        augmented = torch.cat([stego, edge_map], dim=1)
+        f0 = self.msma(self.stem(augmented))
+        d1 = self.aspp_d3(f0)
+        d2 = self.aspp_d6(torch.cat([f0, d1], dim=1))
+        f1 = self.reduce(torch.cat([f0, d1, d2], dim=1))
+        h1 = self.dec1(f1)
+        h2 = self.dec2(torch.cat([f1, h1], dim=1))
+        h3 = self.dec3(torch.cat([f1, h1, h2], dim=1))
+        return self.out(torch.cat([h1, h2, h3], dim=1))
+
     def forward(self, stego: torch.Tensor) -> torch.Tensor:
-        # Edge estimation
-        edge_map = self.edge_branch(stego)                      # (N, 1, H, W)
-        augmented = torch.cat([stego, edge_map], dim=1)         # (N, 4, H, W)
-
-        # Stem + MSMA
-        f0 = self.msma(self.stem(augmented))                    # (N, 48, H, W)
-
-        # Lightweight DenseASPP
-        d1 = self.aspp_d3(f0)                                   # (N, 32, H, W)
-        d2 = self.aspp_d6(torch.cat([f0, d1], dim=1))           # (N, 32, H, W)
-        f1 = self.reduce(torch.cat([f0, d1, d2], dim=1))        # (N, 48, H, W)
-
-        # Dense decode layers
-        h1 = self.dec1(f1)                                      # (N, 48, H, W)
-        h2 = self.dec2(torch.cat([f1, h1], dim=1))              # (N, 48, H, W)
-        h3 = self.dec3(torch.cat([f1, h1, h2], dim=1))          # (N, 48, H, W)
-
-        return self.out(torch.cat([h1, h2, h3], dim=1))         # (N, D, H, W)
+        # Gradient checkpointing avoids storing dense-connection intermediates.
+        # Called T times in the loss loop, so savings are T× (e.g. ~2.4 GB at T=4).
+        if self.training and stego.requires_grad:
+            return checkpoint(self._forward_impl, stego, use_reentrant=False)
+        return self._forward_impl(stego)
