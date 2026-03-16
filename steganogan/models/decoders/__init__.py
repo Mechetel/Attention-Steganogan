@@ -1,2 +1,2 @@
-from .decoders import BasicDecoder, DenseDecoder
+from .decoders import BasicDecoder, DenseDecoder, EdgeAwareDenseDecoder
 __all__ = ["BasicDecoder", "DenseDecoder", "EdgeAwareDenseDecoder"]
