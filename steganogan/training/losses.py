@@ -196,18 +196,25 @@ class VGGPerceptualLoss(nn.Module):
         cover_n = self._normalise(cover)
         stego_n = self._normalise(stego)
 
+        # Pre-compute cover features with no_grad — cover is target only,
+        # no gradient needs to flow through the VGG cover path.
+        cover_feats: dict = {}
+        with torch.no_grad():
+            x = cover_n
+            for idx, layer in enumerate(self.features):
+                x = layer(x)
+                if idx in self.layer_weights:
+                    cover_feats[idx] = x
+
+        # Stego path — gradients flow back through VGG to the stego image.
         loss = torch.tensor(0.0, device=cover.device)
-
-        cover_feat = cover_n
         stego_feat = stego_n
-
         for idx, layer in enumerate(self.features):
-            cover_feat = layer(cover_feat)
             stego_feat = layer(stego_feat)
-
             if idx in self.layer_weights:
-                w = self.layer_weights[idx]
-                loss = loss + w * F.mse_loss(stego_feat, cover_feat.detach())
+                loss = loss + self.layer_weights[idx] * F.mse_loss(
+                    stego_feat, cover_feats[idx]
+                )
 
         return loss
 
