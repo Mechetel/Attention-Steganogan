@@ -6,6 +6,11 @@ Supports two encoder modes transparently:
   Standard   — encoder.forward() returns a single (N,3,H,W) tensor.
   Iterative  — encoder.forward() returns a list of T stego tensors.
                Detected automatically via isinstance check.
+
+Mixed-precision (AMP) is enabled automatically on CUDA devices.
+Combined with gradient checkpointing in DenseASPP / EdgeAwareDenseDecoder /
+EdgeAwareDenseMessageFusion, this halves activation memory and allows
+batch_size=8, T=8 at crop_size=360 on an 11 GB GPU.
 """
 
 from typing import Dict, List, Optional
@@ -13,6 +18,7 @@ from typing import Dict, List, Optional
 import torch
 import torch.nn as nn
 from torch.optim import Adam
+from torch.amp import GradScaler, autocast
 from tqdm import tqdm
 
 from .losses  import SteganographyLoss, IterativeLoss, EdgeAwareIterativeLoss
@@ -91,6 +97,12 @@ class Trainer:
         # Detect if critic uses spectral norm (no weight clipping needed)
         self._critic_uses_spectral_norm = isinstance(critic, MultiScaleEdgeAwareCritic)
 
+        # AMP: enabled on CUDA, no-op on CPU/MPS.
+        self._amp_device = device.type if isinstance(device, torch.device) else device
+        self._use_amp    = (self._amp_device == "cuda")
+        self._scaler     = GradScaler(device=self._amp_device) if self._use_amp else None
+        self._critic_scaler = GradScaler(device=self._amp_device) if self._use_amp else None
+
     # ── Properties ───────────────────────────────────────────────────────────
 
     @property
@@ -123,23 +135,25 @@ class Trainer:
         self, cover: torch.Tensor
     ) -> tuple:
         """One WGAN critic gradient step.  Returns (cover_score, gen_score)."""
-        payload   = self._payload_factory.random(cover, self.data_depth)
-        # The encoder output is detached before the critic sees it, so we do
-        # not need to retain its computation graph during the forward pass.
+        payload = self._payload_factory.random(cover, self.data_depth)
         with torch.no_grad():
             raw_out = self.encoder(cover, payload)
-        stego     = (raw_out[-1] if _is_iterative(raw_out) else raw_out).detach()
+        stego = (raw_out[-1] if _is_iterative(raw_out) else raw_out).detach()
 
-        cover_score = self._critic_score(cover)
-        gen_score   = self._critic_score(stego)
+        with autocast(device_type=self._amp_device, enabled=self._use_amp):
+            cover_score = self._critic_score(cover)
+            gen_score   = self._critic_score(stego)
+            critic_loss = gen_score - cover_score
 
         self.critic_optimizer.zero_grad()
-        (gen_score - cover_score).backward()
-        self.critic_optimizer.step()
+        if self._use_amp:
+            self._critic_scaler.scale(critic_loss).backward()
+            self._critic_scaler.step(self.critic_optimizer)
+            self._critic_scaler.update()
+        else:
+            critic_loss.backward()
+            self.critic_optimizer.step()
 
-        # Weight clipping for standard WGAN critics only.
-        # Spectral-norm critics (MultiScaleEdgeAwareCritic) enforce the
-        # Lipschitz constraint via spectral normalisation on each conv layer.
         if not self._critic_uses_spectral_norm:
             for p in self.critic.parameters():
                 p.data.clamp_(-0.1, 0.1)
@@ -189,18 +203,18 @@ class Trainer:
                 metrics["train.generated_score"].append(gn_s)
 
             # ── Encoder + decoder update ─────────────────────────────────
-            stego, payload, decoded, raw_out = self._encode_decode(cover)
+            with autocast(device_type=self._amp_device, enabled=self._use_amp):
+                stego, payload, decoded, raw_out = self._encode_decode(cover)
 
-            if _is_iterative(raw_out):
-                # Use edge-aware loss if encoder provides an edge map
-                edge_map = getattr(self.encoder, "_last_edge_map", None)
-                if edge_map is not None:
-                    loss = self._edge_iter_loss(cover, payload, raw_out, edge_map)
+                if _is_iterative(raw_out):
+                    edge_map = getattr(self.encoder, "_last_edge_map", None)
+                    if edge_map is not None:
+                        loss = self._edge_iter_loss(cover, payload, raw_out, edge_map)
+                    else:
+                        loss = self._iter_loss(cover, payload, raw_out)
                 else:
-                    loss = self._iter_loss(cover, payload, raw_out)
-            else:
-                gen_score = (self._critic_score(stego) if self.has_critic else None)
-                loss = self._std_loss(cover, stego, payload, decoded, gen_score)
+                    gen_score = (self._critic_score(stego) if self.has_critic else None)
+                    loss = self._std_loss(cover, stego, payload, decoded, gen_score)
 
             with torch.no_grad():
                 enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
@@ -208,8 +222,13 @@ class Trainer:
                 )
 
             self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            if self._use_amp:
+                self._scaler.scale(loss).backward()
+                self._scaler.step(self.optimizer)
+                self._scaler.update()
+            else:
+                loss.backward()
+                self.optimizer.step()
 
             metrics["train.encoder_mse"].append(enc_mse.item())
             metrics["train.decoder_loss"].append(dec_loss.item())
