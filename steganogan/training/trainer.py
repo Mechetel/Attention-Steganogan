@@ -59,7 +59,12 @@ class Trainer:
         self.data_depth         = data_depth
         self.device             = device
         self.verbose            = verbose
-        self.critic_train_steps = critic_train_steps
+        # Spectral-norm critics enforce Lipschitz per-layer — no repeated
+        # critic steps needed (unlike weight-clipping WGAN which needs 5).
+        self.critic_train_steps = (
+            1 if isinstance(critic, MultiScaleEdgeAwareCritic)
+            else critic_train_steps
+        )
 
         self.optimizer:        Optional[torch.optim.Optimizer] = None
         self.critic_optimizer: Optional[torch.optim.Optimizer] = None

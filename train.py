@@ -65,9 +65,9 @@ CONFIG: Dict[str, Any] = {
     # Training
     "data_depth":    1,             # bits per pixel
     "epochs":        32,
-    "batch_size":    2,
-    "num_workers":   4,
-    "crop_size":     256,
+    "batch_size":    8,
+    "num_workers":   8,
+    "crop_size":     360,
 
     # Data paths
     "dataset":       "div2k",
@@ -83,7 +83,7 @@ CONFIG: Dict[str, Any] = {
     # "hidden_ch":     32,            # ConvGRU hidden channels
 
     # EdgeAwareDenseASPPEncoder hyper-parameters
-    "T":             3,             # ConvGRU iterations (fewer needed with DenseASPP)
+    "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
     "eta":           1.0,           # perturbation step size
     "gamma":         0.8,           # iterative loss decay factor
     "alpha":         100.0,         # image-quality loss weight

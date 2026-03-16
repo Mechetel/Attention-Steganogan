@@ -15,6 +15,7 @@ An InceptionDMK module provides multi-kernel refinement at the end.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from ..edge_unet.attention import MSMAModule
 from ..edge_unet.inception import InceptionDMKModule
@@ -103,6 +104,30 @@ class DenseASPPBackbone(nn.Module):
         self.msma_aspp = MSMAModule(out_ch)
         self.inception = InceptionDMKModule(out_ch)
 
+    # ── Segmented helpers for gradient checkpointing ─────────────────────
+
+    def _stem_forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.msma_stem(self.stem(x))
+
+    def _aspp_forward(self, f_att: torch.Tensor) -> torch.Tensor:
+        """Dense ASPP block — all 7 intermediate tensors live only during
+        forward; gradient checkpointing recomputes them on the backward pass
+        instead of keeping them in memory (~2.7 GB saved at batch=8, 360²).
+        """
+        d1    = self.aspp_d3(f_att)
+        cat1  = torch.cat([f_att, d1], dim=1)                   # 96 ch
+        d2    = self.aspp_d6(cat1)
+        cat2  = torch.cat([f_att, d1, d2], dim=1)               # 128 ch
+        d3    = self.aspp_d12(cat2)
+        cat3  = torch.cat([f_att, d1, d2, d3], dim=1)           # 160 ch
+        d4    = self.aspp_d18(cat3)
+        return torch.cat([f_att, d1, d2, d3, d4], dim=1)        # 192 ch
+
+    def _reduce_forward(self, cat_all: torch.Tensor) -> torch.Tensor:
+        return self.inception(self.msma_aspp(self.reduce(cat_all)))
+
+    # ── Forward ──────────────────────────────────────────────────────────
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Parameters
@@ -113,24 +138,14 @@ class DenseASPPBackbone(nn.Module):
         -------
         features : (N, out_ch, H, W)
         """
-        # Stem + attention
-        f_stem = self.stem(x)
-        f_att = self.msma_stem(f_stem)
+        use_ckpt = self.training and x.requires_grad
 
-        # DenseASPP with dense connections
-        d1 = self.aspp_d3(f_att)
-        cat1 = torch.cat([f_att, d1], dim=1)                    # 96 ch
+        if use_ckpt:
+            f_att   = checkpoint(self._stem_forward,  x,      use_reentrant=False)
+            cat_all = checkpoint(self._aspp_forward,  f_att,  use_reentrant=False)
+            return    checkpoint(self._reduce_forward, cat_all, use_reentrant=False)
 
-        d2 = self.aspp_d6(cat1)
-        cat2 = torch.cat([f_att, d1, d2], dim=1)                # 128 ch
-
-        d3 = self.aspp_d12(cat2)
-        cat3 = torch.cat([f_att, d1, d2, d3], dim=1)            # 160 ch
-
-        d4 = self.aspp_d18(cat3)
-        cat_all = torch.cat([f_att, d1, d2, d3, d4], dim=1)     # 192 ch
-
-        # Reduce + attention + inception
-        reduced = self.reduce(cat_all)
-        attended = self.msma_aspp(reduced)
-        return self.inception(attended)
+        # Inference path — no checkpointing needed (no backward).
+        f_att   = self._stem_forward(x)
+        cat_all = self._aspp_forward(f_att)
+        return self._reduce_forward(cat_all)

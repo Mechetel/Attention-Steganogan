@@ -96,22 +96,23 @@ class SampleGridVisualizer:
     ) -> torch.Tensor:
         path   = os.path.join(self.callback_dir, filename)
         image  = imread(path, pilmode="RGB") / 127.5 - 1.0
-        tensor = torch.FloatTensor(image).permute(2, 0, 1)   # (3,H,W)
+        tensor = torch.FloatTensor(image).permute(2, 0, 1).unsqueeze(0)  # (1,3,H,W)
 
-        cover      = tensor.unsqueeze(0).to(self.device)
+        # Resize to TARGET_SIZE *before* encoding so the encoder always runs
+        # at a fixed, predictable resolution regardless of source image size.
+        # This also makes inference safe on GPUs with limited VRAM.
+        cover = F.interpolate(
+            tensor,
+            size=(self.TARGET_SIZE, self.TARGET_SIZE),
+            mode="bilinear", align_corners=False,
+        ).to(self.device)
         _, _, H, W = cover.shape
-        payload    = self.payload_factory.from_text(W, H, data_depth, message)
+        payload = self.payload_factory.from_text(W, H, data_depth, message)
 
         with torch.no_grad():
             raw = self.encoder(cover, payload)
         encoded = (raw[-1] if isinstance(raw, (list, tuple)) else raw)
-        encoded = encoded.squeeze(0).clamp(-1.0, 1.0)
-
-        return F.interpolate(
-            encoded.unsqueeze(0),
-            size=(self.TARGET_SIZE, self.TARGET_SIZE),
-            mode="bilinear", align_corners=False,
-        ).squeeze(0)
+        return encoded.squeeze(0).clamp(-1.0, 1.0)
 
     def _write_grid(
         self,
