@@ -119,7 +119,10 @@ class IterativeLoss:
 
             L_C = torch.tensor(0.0, device=cover.device)
             if self.critic is not None:
-                L_C = torch.mean(self.critic(S_t)) - critic_cover_score
+                # Encoder wants to MAXIMISE critic(stego) → minimise −critic(stego).
+                # L_C = cover_score − gen_score; since cover_score is detached
+                # the gradient only flows through −gen_score, pushing it upward.
+                L_C = critic_cover_score - torch.mean(self.critic(S_t))
 
             total = total + weight * (L_D + self.alpha * L_E + L_C)
 
@@ -357,7 +360,8 @@ class EdgeAwareIterativeLoss:
 
             L_C = torch.tensor(0.0, device=cover.device)
             if self.critic is not None:
-                L_C = torch.mean(self.critic(S_t)) - critic_cover_score
+                # Encoder maximises critic(stego) → minimise cover_score − gen_score.
+                L_C = critic_cover_score - torch.mean(self.critic(S_t))
 
             total = total + weight * (L_D + self.alpha * L_E + L_C)
 
