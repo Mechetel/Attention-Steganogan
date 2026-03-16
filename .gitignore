@@ -4,3 +4,5 @@ __pycache__
 
 /models/**/samples
 /models/**/*.rsbpp*.p
+/data/**/*
+!data/callback_images/*
