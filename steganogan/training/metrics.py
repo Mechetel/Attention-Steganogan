@@ -8,7 +8,7 @@ from typing import Dict, Tuple
 import torch
 import torch.nn.functional as F
 
-from ..utils.image_quality import SSIMCalculator
+from ..utils.image_quality import SSIMCalculator, FSIMCalculator, WPSNRCalculator
 
 
 class SteganographyMetrics:
@@ -24,6 +24,8 @@ class SteganographyMetrics:
     decoder_acc  : fraction of bits decoded correctly  (↑)
     ssim         : structural similarity  (↑, max 1)
     psnr         : peak signal-to-noise ratio in dB  (↑)
+    fsim         : feature similarity index measure  (↑, max 1)
+    wpsnr        : weighted PSNR with local-variance masking in dB  (↑)
     rsbpp        : robust steganographic bits per pixel  (↑)
     """
 
@@ -61,7 +63,7 @@ class SteganographyMetrics:
 
         Returns a dict with keys:
         ``encoder_mse``, ``decoder_loss``, ``decoder_acc``,
-        ``ssim``, ``psnr``, ``rsbpp``.
+        ``ssim``, ``psnr``, ``fsim``, ``wpsnr``, ``rsbpp``.
         """
         enc_mse, dec_loss, dec_acc = SteganographyMetrics.coding_scores(
             cover, stego, payload, decoded
@@ -72,5 +74,7 @@ class SteganographyMetrics:
             "decoder_acc":  dec_acc.item(),
             "ssim":         SSIMCalculator.calculate(cover, stego).item(),
             "psnr":         10.0 * torch.log10(4.0 / enc_mse).item(),
+            "fsim":         FSIMCalculator.calculate(cover, stego).item(),
+            "wpsnr":        WPSNRCalculator.calculate(cover, stego).item(),
             "rsbpp":        data_depth * (2.0 * dec_acc.item() - 1.0),
         }
