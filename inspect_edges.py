@@ -19,19 +19,21 @@ python inspect_edges.py --image data/callback_images/foo.png \
 # Without a checkpoint (random weights — sanity check that the plumbing works):
 python inspect_edges.py --image data/callback_images/foo.png
 
-┌──────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│       File       │                                                What to look for                                                │
-├──────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ edge_learned.png │ Should highlight object contours. Compare with Sobel — if identical, the network hasn't diverged from          │
-│                  │ classical edges; if different, it's learned steganography-specific features                                    │
-├──────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ edge_mask.png    │ Same but with the ε=0.05 floor baked in — this is literally what gets multiplied onto perturbations. Bright =  │
-│                  │ more embedding                                                                                                 │
-├──────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ edge_sobel.png   │ Classical baseline for comparison                                                                              │
-├──────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ overlay.png      │ Red tint = where the encoder concentrates changes on the cover                                                 │
-└──────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────┬──────────────────────────────────────────────────────────────────────────┐
+│       File       │                             What to look for                             │
+├──────────────────┼──────────────────────────────────────────────────────────────────────────┤
+│                  │ Should highlight object contours. Compare with Sobel — if identical, the │
+│ edge_learned.png │  network hasn't diverged from classical edges; if different, it's        │
+│                  │ learned steganography-specific features                                  │
+├──────────────────┼──────────────────────────────────────────────────────────────────────────┤
+│ edge_mask.png    │ Same but with the ε=0.05 floor baked in — this is literally what gets    │
+│                  │ multiplied onto perturbations. Bright = more embedding                   │
+├──────────────────┼──────────────────────────────────────────────────────────────────────────┤
+│ edge_sobel.png   │ Classical baseline for comparison                                        │
+├──────────────────┼──────────────────────────────────────────────────────────────────────────┤
+│ overlay.png      │ Red tint = where the encoder concentrates changes on the cover           │
+└──────────────────┴──────────────────────────────────────────────────────────────────────────┘
+
 """
 
 import argparse
