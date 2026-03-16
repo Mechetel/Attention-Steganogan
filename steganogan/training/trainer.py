@@ -148,10 +148,13 @@ class Trainer:
         self.critic_optimizer.zero_grad()
         if self._use_amp:
             self._critic_scaler.scale(critic_loss).backward()
+            self._critic_scaler.unscale_(self.critic_optimizer)
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
             self._critic_scaler.step(self.critic_optimizer)
             self._critic_scaler.update()
         else:
             critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
             self.critic_optimizer.step()
 
         if not self._critic_uses_spectral_norm:
@@ -224,10 +227,19 @@ class Trainer:
             self.optimizer.zero_grad()
             if self._use_amp:
                 self._scaler.scale(loss).backward()
+                self._scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    list(self.encoder.parameters()) + list(self.decoder.parameters()),
+                    max_norm=1.0,
+                )
                 self._scaler.step(self.optimizer)
                 self._scaler.update()
             else:
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    list(self.encoder.parameters()) + list(self.decoder.parameters()),
+                    max_norm=1.0,
+                )
                 self.optimizer.step()
 
             metrics["train.encoder_mse"].append(enc_mse.item())
