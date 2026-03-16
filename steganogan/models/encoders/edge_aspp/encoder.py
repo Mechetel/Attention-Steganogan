@@ -22,6 +22,7 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from ...base import BaseEncoder
 from .recurrent import ConvGRUCell, PerturbationNetwork
@@ -128,11 +129,17 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
         for _ in range(self.T):
             grad_delta = torch.zeros_like(delta)
             x_t = torch.cat([delta, grad_delta, features, edge_map], dim=1)
-            h_t = self.gru_cell(x_t, h_t)
 
-            raw_pert = self.perturb_net(h_t)
+            # Checkpoint each GRU step: saves the 3 gate tensors (update,
+            # reset, candidate) per step — ~550 MB × T at batch=8, 360².
+            if training:
+                h_t = checkpoint(self.gru_cell, x_t, h_t, use_reentrant=False)
+                raw_pert = checkpoint(self.perturb_net, h_t, use_reentrant=False)
+            else:
+                h_t = self.gru_cell(x_t, h_t)
+                raw_pert = self.perturb_net(h_t)
+
             masked_pert = raw_pert * edge_mask_3ch
-
             delta = delta + self.eta * masked_pert
             S_t = (cover + delta).clamp(-1.0, 1.0)
 
