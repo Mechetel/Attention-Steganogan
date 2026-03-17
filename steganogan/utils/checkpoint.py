@@ -2,11 +2,41 @@
 """Model serialisation: save and load SteganoGAN checkpoints."""
 
 import os
+import pickle
+import types
 from typing import Optional, TYPE_CHECKING
 
 import torch
 
 from .device import DeviceManager
+
+
+class _AmpStub:
+    """Drop-in stub for torch.amp.GradScaler and its private nested classes.
+    GradScaler is only needed during training; inference loads are safe with
+    a stub that absorbs the pickled state without using it."""
+    def __init__(self, *a, **kw): pass
+    def __setstate__(self, state): self.__dict__.update(state)
+    def __getattr__(self, name): return lambda *a, **kw: None
+
+
+class _CompatUnpickler(pickle.Unpickler):
+    """Replace torch.amp.* classes with stubs when loading on PyTorch < 2.3."""
+
+    def find_class(self, module, name):
+        if module.startswith("torch.amp."):
+            return _AmpStub
+        try:
+            return super().find_class(module, name)
+        except (ModuleNotFoundError, AttributeError):
+            return _AmpStub
+
+
+# torch.load accepts a pickle_module with an Unpickler attribute.
+_CompatPickle = types.ModuleType("_compat_pickle")
+_CompatPickle.Unpickler = _CompatUnpickler  # type: ignore[attr-defined]
+_CompatPickle.loads     = pickle.loads       # type: ignore[attr-defined]
+_CompatPickle.dumps     = pickle.dumps       # type: ignore[attr-defined]
 
 if TYPE_CHECKING:
     from ..engine import SteganoGAN
@@ -50,7 +80,12 @@ class ModelCheckpoint:
         if verbose:
             print(f"Loading checkpoint: {path} → {device_mgr.device}")
 
-        model = torch.load(path, map_location=device_mgr.device, weights_only=False)
+        model = torch.load(
+            path,
+            map_location=device_mgr.device,
+            weights_only=False,
+            pickle_module=_CompatPickle,
+        )
         model.verbose = verbose
 
         # Reset transient optimiser / metric state

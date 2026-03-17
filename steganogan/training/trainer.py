@@ -18,7 +18,10 @@ from typing import Dict, List, Optional
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from torch.amp import GradScaler, autocast
+try:
+    from torch.amp import GradScaler, autocast          # PyTorch ≥ 2.3
+except ImportError:
+    from torch.cuda.amp import GradScaler, autocast     # PyTorch 2.2
 from tqdm import tqdm
 
 from .losses  import SteganographyLoss, IterativeLoss, EdgeAwareIterativeLoss
@@ -291,6 +294,35 @@ class Trainer:
                     psnr=f"{metrics['val.psnr'][-1]:.2f}",
                     rsbpp=f"{metrics['val.rsbpp'][-1]:.4f}",
                 )
+
+    # ── Pickle support ────────────────────────────────────────────────────────
+
+    def __getstate__(self):
+        """Exclude GradScaler instances — they are PyTorch-version-specific and
+        are never needed for inference.  They are re-created in __setstate__."""
+        state = self.__dict__.copy()
+        state.pop("_scaler", None)
+        state.pop("_critic_scaler", None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Re-create scalers so the trainer is ready to resume training.
+        if getattr(self, "_use_amp", False):
+            amp_device = getattr(self, "_amp_device", "cuda")
+            try:
+                from torch.amp import GradScaler
+            except ImportError:
+                from torch.cuda.amp import GradScaler
+            try:
+                self._scaler        = GradScaler(device=amp_device)
+                self._critic_scaler = GradScaler(device=amp_device)
+            except TypeError:           # PyTorch < 2.3: no device kwarg
+                self._scaler        = GradScaler()
+                self._critic_scaler = GradScaler()
+        else:
+            self._scaler        = None
+            self._critic_scaler = None
 
     # ── Backward-compat aliases ───────────────────────────────────────────────
 
