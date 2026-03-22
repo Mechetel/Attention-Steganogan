@@ -67,9 +67,9 @@ CONFIG: Dict[str, Any] = {
     "gpu":           True,         # True | False
 
     # Architecture
-    "encoder":       "agnostic",       # basic | residual | dense | edge_unet | edge_aspp | agnostic
-    "decoder":       "agnostic",       # basic | dense | edge_aware_dense | agnostic
-    "critic":        False,       # basic | multiscale_edge | False
+    "encoder":       "edge_aspp",       # basic | residual | dense | edge_unet | edge_aspp | agnostic
+    "decoder":       "edge_aware_dense",       # basic | dense | edge_aware_dense | agnostic
+    "critic":        "multiscale_edge",       # basic | multiscale_edge | False
 
     # Training
     "data_depth":    6,             # bits per pixel
@@ -92,14 +92,14 @@ CONFIG: Dict[str, Any] = {
     # "hidden_ch":     32,            # ConvGRU hidden channels
 
     # EdgeAwareDenseASPPEncoder hyper-parameters
-    # "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
-    # "eta":           1.0,           # perturbation step size
-    # "gamma":         0.8,           # iterative loss decay factor
-    # "alpha":         100.0,         # image-quality loss weight
-    # "hidden_ch":     48,            # ConvGRU hidden channels
-    # "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
-    # "lambda_edge":   0.01,          # edge regularisation weight
-    # "lambda_vgg":    0.1,           # VGG perceptual loss weight
+    "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
+    "eta":           1.0,           # perturbation step size
+    "gamma":         0.8,           # iterative loss decay factor
+    "alpha":         100.0,         # image-quality loss weight
+    "hidden_ch":     48,            # ConvGRU hidden channels
+    "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
+    "lambda_edge":   0.01,          # edge regularisation weight
+    "lambda_vgg":    0.1,           # VGG perceptual loss weight
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
