@@ -108,6 +108,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="SteganoGAN inference test")
     p.add_argument("--model",         default="models/weights.steg")
     p.add_argument("--gpu",           action="store_true", default=False)
+    p.add_argument("--depth",         type=int, default=None, help="Override data_depth (DepthAgnosticEncoder/Decoder only)")
     p.add_argument("--input",         default="input.png")
     p.add_argument("--output",        default="output.png")
     p.add_argument("--message",       default="This is a super secret message!")
@@ -128,6 +129,9 @@ def main() -> None:
     print(f"  output : {args.output}")
 
     model = SteganoGAN.load(args.model, gpu=args.gpu, verbose=args.verbose)
+    if args.depth is not None:
+        model.set_depth(args.depth)
+        print(f"  depth  : {args.depth}  (overridden)")
     print_model_info(model)
 
     print(f"\n{'=' * 60}")

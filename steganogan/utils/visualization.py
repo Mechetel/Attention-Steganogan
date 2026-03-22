@@ -111,7 +111,7 @@ class SampleGridVisualizer:
 
         with torch.no_grad():
             raw = self.encoder(cover, payload)
-        encoded = (raw[-1] if isinstance(raw, (list, tuple)) else raw)
+        encoded = raw[-1] if isinstance(raw, (list, tuple)) else raw
         return encoded.squeeze(0).clamp(-1.0, 1.0)
 
     def _write_grid(

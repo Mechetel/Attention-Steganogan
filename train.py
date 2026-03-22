@@ -6,6 +6,7 @@ SteganoGAN training script.
 Supports all encoder variants, including:
   EdgeGuidedDualStreamUNetEncoder  (Ji, Zhang, Lv – Applied Sciences 2025)
   EdgeAwareDenseASPPEncoder        (Novel: DenseASPP + MSMA + learned edge detection)
+  DepthAgnosticEncoder             (Novel: D never baked in weights — one model for any depth)
 
 Paper-recommended settings to reproduce Div2K results:
   encoder    : 'edge_unet'    data_depth : 1
@@ -17,6 +18,11 @@ Edge-aware DenseASPP settings:
   decoder    : 'edge_aware_dense'
   critic     : 'multiscale_edge'
   T=8, eta=1.0, gamma=0.8, alpha=100.0, hidden_ch=48
+
+Depth-agnostic settings (train once, run at any D=1..data_depth):
+  encoder    : 'agnostic'     data_depth : 6
+  decoder    : 'agnostic'
+  critic     : False | 'basic' | 'multiscale_edge'
 """
 
 import gc
@@ -43,7 +49,9 @@ from steganogan import SteganoGAN
 from steganogan.models import (
     BasicEncoder, ResidualEncoder, DenseEncoder,
     EdgeGuidedDualStreamUNetEncoder,
+    DepthAgnosticEncoder,
     BasicDecoder, DenseDecoder,
+    DepthAgnosticDecoder,
     BasicCritic,
 )
 from steganogan.models.encoders.edge_aspp import EdgeAwareDenseASPPEncoder
@@ -59,12 +67,12 @@ CONFIG: Dict[str, Any] = {
     "gpu":           True,         # True | False
 
     # Architecture
-    "encoder":       "edge_aspp",       # basic | residual | dense | edge_unet | edge_aspp
-    "decoder":       "edge_aware_dense",       # basic | dense | edge_aware_dense
-    "critic":        "multiscale_edge",       # basic | multiscale_edge | False
+    "encoder":       "agnostic",       # basic | residual | dense | edge_unet | edge_aspp | agnostic
+    "decoder":       "agnostic",       # basic | dense | edge_aware_dense | agnostic
+    "critic":        False,       # basic | multiscale_edge | False
 
     # Training
-    "data_depth":    1,             # bits per pixel
+    "data_depth":    6,             # bits per pixel
     "epochs":        32,
     "batch_size":    8,
     "num_workers":   8,
@@ -84,14 +92,14 @@ CONFIG: Dict[str, Any] = {
     # "hidden_ch":     32,            # ConvGRU hidden channels
 
     # EdgeAwareDenseASPPEncoder hyper-parameters
-    "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
-    "eta":           1.0,           # perturbation step size
-    "gamma":         0.8,           # iterative loss decay factor
-    "alpha":         100.0,         # image-quality loss weight
-    "hidden_ch":     48,            # ConvGRU hidden channels
-    "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
-    "lambda_edge":   0.01,          # edge regularisation weight
-    "lambda_vgg":    0.1,           # VGG perceptual loss weight
+    # "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
+    # "eta":           1.0,           # perturbation step size
+    # "gamma":         0.8,           # iterative loss decay factor
+    # "alpha":         100.0,         # image-quality loss weight
+    # "hidden_ch":     48,            # ConvGRU hidden channels
+    # "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
+    # "lambda_edge":   0.01,          # edge regularisation weight
+    # "lambda_vgg":    0.1,           # VGG perceptual loss weight
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
@@ -126,6 +134,8 @@ def _build_encoder(cfg: Dict[str, Any]) -> torch.nn.Module:
         enc.lambda_edge = cfg.get("lambda_edge", 0.01)
         enc.lambda_vgg  = cfg.get("lambda_vgg", 0.1)
         return enc
+    elif choice == "agnostic":
+        return DepthAgnosticEncoder(d)
     else:
         raise ValueError(f"Unknown encoder: {choice!r}")
 
@@ -135,6 +145,7 @@ def _build_decoder(cfg: Dict[str, Any]) -> type:
     if   choice == "basic":            return BasicDecoder
     elif choice == "dense":            return DenseDecoder
     elif choice == "edge_aware_dense": return EdgeAwareDenseDecoder
+    elif choice == "agnostic":         return DepthAgnosticDecoder
     else:
         raise ValueError(f"Unknown decoder: {choice!r}")
 

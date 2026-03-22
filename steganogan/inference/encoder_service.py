@@ -66,9 +66,9 @@ class EncoderService:
 
         with torch.no_grad():
             raw_out = self.encoder(cover, payload)
+        stego_out = raw_out[-1] if isinstance(raw_out, (list, tuple)) else raw_out
 
-        stego = (raw_out[-1] if isinstance(raw_out, (list, tuple)) else raw_out)
-        stego = stego[0].clamp(-1.0, 1.0)
+        stego = stego_out[0].clamp(-1.0, 1.0)
         stego = ((stego.permute(2, 1, 0).cpu().numpy() + 1.0) * 127.5).astype("uint8")
         imwrite(output_path, stego)
 

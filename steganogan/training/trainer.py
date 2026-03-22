@@ -2,39 +2,45 @@
 """
 Trainer: manages one full epoch of encoder/decoder (+ optional critic) training.
 
-Supports two encoder modes transparently:
-  Standard   — encoder.forward() returns a single (N,3,H,W) tensor.
-  Iterative  — encoder.forward() returns a list of T stego tensors.
-               Detected automatically via isinstance check.
+Supports three encoder modes transparently:
+  Standard      — encoder.forward() returns a single (N,3,H,W) tensor.
+  Iterative     — encoder.forward() returns a list of T stego tensors.
+                  Detected automatically via isinstance check.
+  DepthAgnostic — encoder.forward() folds D into the batch dimension
+                  internally; still returns a single (N,3,H,W) tensor.
+                  D is drawn randomly from [1, data_depth] each training
+                  batch so one model covers all depths.
 
 Mixed-precision (AMP) is enabled automatically on CUDA devices.
-Combined with gradient checkpointing in DenseASPP / EdgeAwareDenseDecoder /
-EdgeAwareDenseMessageFusion, this halves activation memory and allows
-batch_size=8, T=8 at crop_size=360 on an 11 GB GPU.
 """
 
+import random
 from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
 from torch.optim import Adam
 try:
-    from torch.amp import GradScaler, autocast          # PyTorch ≥ 2.3
+    from torch.amp import GradScaler, autocast as _autocast_cls
+    def _autocast(device_type: str, enabled: bool):
+        return _autocast_cls(device_type=device_type, enabled=enabled)
 except ImportError:
-    from torch.cuda.amp import GradScaler, autocast     # PyTorch 2.2
+    from torch.cuda.amp import GradScaler, autocast as _autocast_cls  # type: ignore[assignment]
+    def _autocast(device_type: str, enabled: bool):      # type: ignore[misc]
+        return _autocast_cls(enabled=enabled)
 from tqdm import tqdm
 
 from .losses  import SteganographyLoss, IterativeLoss, EdgeAwareIterativeLoss
 from .metrics import SteganographyMetrics
-from ..utils.payload      import PayloadFactory
+from ..utils.payload       import PayloadFactory
 from ..utils.image_quality import SSIMCalculator
-from ..models.critics.critics import MultiScaleEdgeAwareCritic
+from ..models.critics.critics  import MultiScaleEdgeAwareCritic
+from ..models.encoders.agnostic import DepthAgnosticEncoder
 
 
 def _is_iterative(output) -> bool:
     """True if encoder output is a list/tuple of stego tensors."""
     return isinstance(output, (list, tuple))
-
 
 
 class Trainer:
@@ -45,7 +51,7 @@ class Trainer:
     ----------
     encoder           : encoder module
     decoder           : decoder module
-    data_depth        : bits per pixel
+    data_depth        : maximum bits per pixel (D_max)
     device            : compute device
     verbose           : show tqdm progress bars
     critic            : optional WGAN critic module
@@ -97,13 +103,12 @@ class Trainer:
             lambda_vgg=getattr(encoder, "lambda_vgg", 0.1),
         ).to(device)
 
-        # Detect if critic uses spectral norm (no weight clipping needed)
         self._critic_uses_spectral_norm = isinstance(critic, MultiScaleEdgeAwareCritic)
 
         # AMP: enabled on CUDA, no-op on CPU/MPS.
         self._amp_device = device.type if isinstance(device, torch.device) else device
         self._use_amp    = (self._amp_device == "cuda")
-        self._scaler     = GradScaler(device=self._amp_device) if self._use_amp else None
+        self._scaler        = GradScaler(device=self._amp_device) if self._use_amp else None
         self._critic_scaler = GradScaler(device=self._amp_device) if self._use_amp else None
 
     # ── Properties ───────────────────────────────────────────────────────────
@@ -134,16 +139,16 @@ class Trainer:
     def _critic_score(self, image: torch.Tensor) -> torch.Tensor:
         return torch.mean(self.critic(image))
 
-    def _train_critic_step(
-        self, cover: torch.Tensor
-    ) -> tuple:
+    def _train_critic_step(self, cover: torch.Tensor) -> tuple:
         """One WGAN critic gradient step.  Returns (cover_score, gen_score)."""
-        payload = self._payload_factory.random(cover, self.data_depth)
+        D = (random.randint(1, self.data_depth) if isinstance(self.encoder, DepthAgnosticEncoder) else self.data_depth)
+        payload = self._payload_factory.random(cover, D)
+
         with torch.no_grad():
             raw_out = self.encoder(cover, payload)
         stego = (raw_out[-1] if _is_iterative(raw_out) else raw_out).detach()
 
-        with autocast(device_type=self._amp_device, enabled=self._use_amp):
+        with _autocast(self._amp_device, self._use_amp):
             cover_score = self._critic_score(cover)
             gen_score   = self._critic_score(stego)
             critic_loss = gen_score - cover_score
@@ -173,8 +178,14 @@ class Trainer:
         Forward pass through encoder and decoder.
 
         Returns (stego, payload, decoded_logits, raw_encoder_output).
+
+        Works identically for standard, iterative, and DepthAgnostic models —
+        all branching lives inside the model classes themselves.
         """
-        payload = self._payload_factory.random(cover, self.data_depth)
+        D = random.randint(1, self.data_depth) if isinstance(self.encoder, DepthAgnosticEncoder) and not quantize else self.data_depth
+        self.decoder.data_depth = D
+        payload = self._payload_factory.random(cover, D)
+
         raw_out = self.encoder(cover, payload)
         stego   = raw_out[-1] if _is_iterative(raw_out) else raw_out
 
@@ -209,7 +220,7 @@ class Trainer:
                 metrics["train.generated_score"].append(gn_s)
 
             # ── Encoder + decoder update ─────────────────────────────────
-            with autocast(device_type=self._amp_device, enabled=self._use_amp):
+            with _autocast(self._amp_device, self._use_amp):
                 stego, payload, decoded, raw_out = self._encode_decode(cover)
 
                 if _is_iterative(raw_out):

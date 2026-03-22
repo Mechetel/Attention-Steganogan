@@ -148,6 +148,21 @@ class SteganoGAN:
             modules.append(self.critic)
         self.device_manager.to_device(*modules)
 
+    def set_depth(self, data_depth: int) -> None:
+        """
+        Switch the active data_depth for all components.
+
+        For DepthAgnosticEncoder / DepthAgnosticDecoder this controls the
+        number of bit-planes embedded / recovered at inference time.
+        For standard fixed-shape models the call is a no-op at inference
+        (their weight shapes are already committed to the original D).
+        """
+        self.data_depth               = data_depth
+        self.encoder.data_depth       = data_depth
+        self.decoder.data_depth       = data_depth
+        self._encoder_svc.data_depth  = data_depth
+        self._trainer.data_depth      = data_depth
+
     # ── Training ──────────────────────────────────────────────────────────────
 
     def fit(

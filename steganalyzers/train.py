@@ -122,7 +122,7 @@ def _build_network(cfg: Dict[str, Any]) -> torch.nn.Module:
     elif choice == "yenet":
         return YeNet(
             **common,
-            srm_trainable=cfg.get("srm_trainable", True),
+            srm_trainable=cfg.get("srm_trainable", False),
             tlu_threshold=cfg.get("tlu_threshold", 3.0),
         )
 
@@ -139,13 +139,13 @@ def _build_network(cfg: Dict[str, Any]) -> torch.nn.Module:
     elif choice == "zhunet":
         return ZhuNet(
             **common,
-            srm_trainable=cfg.get("srm_trainable", True),
+            srm_trainable=cfg.get("srm_trainable", False),
         )
 
     elif choice == "siastegnet":
         return SIAStegNet(
             **common,
-            srm_trainable=cfg.get("srm_trainable", True),
+            srm_trainable=cfg.get("srm_trainable", False),
             ca_reduction=cfg.get("ca_reduction", 8),
             dropout=cfg.get("dropout", 0.5),
         )
@@ -153,7 +153,7 @@ def _build_network(cfg: Dict[str, Any]) -> torch.nn.Module:
     elif choice == "efficientnetsteg":
         return EfficientNetSteg(
             **common,
-            srm_trainable=cfg.get("srm_trainable", True),
+            srm_trainable=cfg.get("srm_trainable", False),
             freeze_backbone=cfg.get("freeze_backbone", False),
             dropout=cfg.get("dropout", 0.4),
         )

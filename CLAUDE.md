@@ -10,10 +10,12 @@ Image steganography system based on deep learning. Embeds secret binary messages
 - **BasicEncoder / ResidualEncoder / DenseEncoder** — Original SteganoGAN architectures (Zhang et al., 2019)
 - **EdgeGuidedDualStreamUNetEncoder** — Dual-stream U-Net with MSMA attention + InceptionDMK + ConvGRU iterative refinement (Ji, Zhang, Lv — Applied Sciences 2025)
 - **EdgeAwareDenseASPPEncoder** — Novel: DenseASPP backbone + MSMA + learned EdgeNet + edge-masked ConvGRU refinement. Concentrates data embedding in edge regions.
+- **DepthAgnosticEncoder** — 5ch input (3 cover + 1 bit-plane + 1 normalised index). Folds D into batch inside `forward()` — one GPU call, no Python loop. `sample_depth()` draws random D∈[1,data_depth] each training batch so one model works for all depths at inference. Set inference depth via `model.set_depth(d)`.
 
 ### Decoders
 - **BasicDecoder / DenseDecoder** — Original SteganoGAN decoders
 - **EdgeAwareDenseDecoder** — Edge-aware decoder with lightweight DenseASPP + MSMA attention
+- **DepthAgnosticDecoder** — 4ch input (3 stego + 1 normalised index). Folds D into batch inside `forward()` — one GPU call, no Python loop. Reads D from `self.data_depth` (synced by Trainer per batch; set inference depth via `model.set_depth(d)`). Output: (N, D, H, W) logits.
 
 ### Critics
 - **BasicCritic** — Original WGAN critic with weight clipping
