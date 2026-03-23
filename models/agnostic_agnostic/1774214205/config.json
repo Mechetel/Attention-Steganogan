@@ -7,7 +7,7 @@
   "epochs": 32,
   "batch_size": 8,
   "num_workers": 8,
-  "crop_size": 30,
+  "crop_size": 360,
   "dataset": "div2k",
-  "data_root": "/Users/dmitryhoma/Projects/datasets"
+  "data_root": "/workspace/Attention-Steganogan/data"
 }

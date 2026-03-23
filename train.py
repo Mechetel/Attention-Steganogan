@@ -72,7 +72,7 @@ CONFIG: Dict[str, Any] = {
     "critic":        "multiscale_edge",       # basic | multiscale_edge | False
 
     # Training
-    "data_depth":    6,             # bits per pixel
+    "data_depth":    2,             # bits per pixel
     "epochs":        32,
     "batch_size":    8,
     "num_workers":   8,
@@ -92,7 +92,7 @@ CONFIG: Dict[str, Any] = {
     # "hidden_ch":     32,            # ConvGRU hidden channels
 
     # EdgeAwareDenseASPPEncoder hyper-parameters
-    "T":             8,             # ConvGRU iterations (fewer needed with DenseASPP)
+    "T":             4,             # ConvGRU iterations (fewer needed with DenseASPP)
     "eta":           1.0,           # perturbation step size
     "gamma":         0.8,           # iterative loss decay factor
     "alpha":         100.0,         # image-quality loss weight

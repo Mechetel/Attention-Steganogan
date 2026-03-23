@@ -57,6 +57,8 @@ class TrainingHistory:
         print(
             f"  [val]    ssim={metrics['val.ssim']:.4f}"
             f"  psnr={metrics['val.psnr']:.2f}"
+            f"  wpsnr={metrics['val.wpsnr']:.2f}"
+            f"  fsim={metrics['val.fsim']:.4f}"
             f"  rsbpp={metrics['val.rsbpp']:.4f}"
         )
         if "val.cover_score" in metrics:

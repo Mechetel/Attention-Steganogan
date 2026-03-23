@@ -28,7 +28,8 @@ from .utils.visualization import SampleGridVisualizer
 _BASE_METRICS: List[str] = [
     "train.encoder_mse", "train.decoder_loss", "train.decoder_acc",
     "val.encoder_mse",   "val.decoder_loss",   "val.decoder_acc",
-    "val.ssim",          "val.psnr",           "val.rsbpp",
+    "val.ssim",          "val.psnr",           "val.wpsnr",
+    "val.fsim",          "val.rsbpp",
 ]
 
 _CRITIC_METRICS: List[str] = [

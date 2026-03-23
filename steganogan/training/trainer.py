@@ -33,7 +33,7 @@ from tqdm import tqdm
 from .losses  import SteganographyLoss, IterativeLoss, EdgeAwareIterativeLoss
 from .metrics import SteganographyMetrics
 from ..utils.payload       import PayloadFactory
-from ..utils.image_quality import SSIMCalculator
+from ..utils.image_quality import SSIMCalculator, FSIMCalculator, WPSNRCalculator
 from ..models.critics.critics  import MultiScaleEdgeAwareCritic
 from ..models.encoders.agnostic import DepthAgnosticEncoder
 
@@ -294,6 +294,8 @@ class Trainer:
                 metrics["val.decoder_acc"].append(dec_acc.item())
                 metrics["val.ssim"].append(SSIMCalculator.calculate(cover, stego).item())
                 metrics["val.psnr"].append(10.0 * torch.log10(4.0 / enc_mse).item())
+                metrics["val.wpsnr"].append(WPSNRCalculator.calculate(cover, stego).item())
+                metrics["val.fsim"].append(FSIMCalculator.calculate(cover, stego).item())
                 metrics["val.rsbpp"].append(self.data_depth * (2.0 * dec_acc.item() - 1.0))
 
                 if self.has_critic:
