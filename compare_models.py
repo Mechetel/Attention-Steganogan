@@ -19,7 +19,7 @@ BASE = os.path.dirname(__file__)
 
 DENSE_CKPT    = os.path.join(BASE, "models/dense_dense/1773340283/32.rsbpp-0.965443.p")
 EDGEUNET_CKPT = os.path.join(BASE, "models/edge_unet_dense/1773386504/32.rsbpp-0.969229.p")
-EDGEASPP_CKPT = os.path.join(BASE, "models/edge_aspp_edge_aware_dense/1773701818/15.rsbpp-0.971000.p")
+EDGEASPP_CKPT = os.path.join(BASE, "models/edge_aspp_edge_aware_dense/1774256915/32.rsbpp-2.405477.p")
 COVER_PATH    = os.path.join(BASE, "data/callback_images/0015.png")
 OUT_PATH      = os.path.join(BASE, "comparison.png")
 MESSAGE       = "Hello, SteganoGAN!"
