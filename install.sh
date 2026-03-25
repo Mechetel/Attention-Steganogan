@@ -49,6 +49,23 @@ rm test2017.zip
 
 # =========================================================================
 # Download CelebA
+#
+# Helper: convert all JPGs in a directory to PNG (skip corrupt files)
+jpg_to_png() {
+    local dir="$1"
+    python3 - "$dir" <<'EOF'
+import sys, os, glob
+from PIL import Image
+
+directory = sys.argv[1]
+for jpg in glob.glob(os.path.join(directory, "**", "*.jpg"), recursive=True):
+    try:
+        Image.open(jpg).convert("RGB").save(os.path.splitext(jpg)[0] + ".png")
+        os.remove(jpg)
+    except Exception as e:
+        print(f"Skipping {jpg}: {e}")
+EOF
+}
 
 mkdir celeba
 cd celeba
@@ -58,3 +75,5 @@ mkdir -p val/_ train/_
 ls img_align_celeba | shuf -n 1000 | xargs -I{} mv img_align_celeba/{} val/_/
 ls img_align_celeba | shuf -n 1000 | xargs -I{} mv img_align_celeba/{} train/_/
 rm celeba.zip
+jpg_to_png val/_
+jpg_to_png train/_
