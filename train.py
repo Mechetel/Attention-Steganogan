@@ -67,9 +67,9 @@ CONFIG: Dict[str, Any] = {
     "gpu":           True,         # True | False
 
     # Architecture
-    "encoder":       "edge_aspp",       # basic | residual | dense | edge_unet | edge_aspp | agnostic
-    "decoder":       "edge_aware_dense",       # basic | dense | edge_aware_dense | agnostic
-    "critic":        "multiscale_edge",       # basic | multiscale_edge | False
+    "encoder":       "edge_aspp",        # basic | residual | dense | edge_unet | edge_aspp | agnostic
+    "decoder":       "edge_aware_dense", # basic | dense | edge_aware_dense | agnostic
+    "critic":        "multiscale_edge",  # basic | multiscale_edge | False
 
     # Training
     "data_depth":    1,             # bits per pixel
@@ -79,9 +79,9 @@ CONFIG: Dict[str, Any] = {
     "crop_size":     360,
 
     # Data paths
-    "dataset":       "mscoco",
-    "data_root":     os.path.expanduser("~/Projects/datasets"),
-    # "data_root":     os.path.expanduser("~/Attention-Steganogan/data"),
+    "dataset":       "div2k",
+    # "data_root":     os.path.expanduser("~/Projects/datasets"),
+    "data_root":     os.path.expanduser("/workspace/Attention-Steganogan/data"),
 
     # EdgeGuidedDualStreamUNetEncoder hyper-parameters
     # "T":             10,            # ConvGRU iterations
@@ -91,6 +91,13 @@ CONFIG: Dict[str, Any] = {
     # "sobel_alpha":   1.0,           # edge enhancement strength
     # "hidden_ch":     32,            # ConvGRU hidden channels
 
+    # (T, alpha, lambda_edge, lambda_vgg, hidden_ch) tuples to try for EdgeAwareDenseASPPEncoder:
+    # conf_1 (4,  100.0, 0.01, 0.1, 48)
+    # conf_2 (8,  100.0, 0.05, 0.1, 48)
+    # conf_3 (4,  10.0,  0.01, 0.1, 48)
+    # conf_4 (4,  100.0, 0.5,  0.1, 36)
+    # conf_5 (4,  1.0,   0.01, 1.0, 48)
+    # conf_6 (10, 100.0, 0.01, 0.5, 24)
     # EdgeAwareDenseASPPEncoder hyper-parameters
     "T":             4,             # ConvGRU iterations (fewer needed with DenseASPP)
     "eta":           1.0,           # perturbation step size
