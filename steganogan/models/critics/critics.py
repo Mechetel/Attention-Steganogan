@@ -164,8 +164,6 @@ class MultiScaleEdgeAwareCritic(BaseCritic):
         # Multi-scale aggregation: expand smaller scales back to full res
         # and combine so the output matches BaseCritic's (N, 1, H, W) contract
         _, _, H, W = score_s1.shape
-        s2_up = F.interpolate(score_s2, size=(H, W), mode="bilinear",
-                              align_corners=False)
-        s3_up = F.interpolate(score_s3, size=(H, W), mode="bilinear",
-                              align_corners=False)
+        s2_up = F.interpolate(score_s2, size=(H, W), mode="bilinear", align_corners=False)
+        s3_up = F.interpolate(score_s3, size=(H, W), mode="bilinear", align_corners=False)
         return score_s1 + s2_up + s3_up
