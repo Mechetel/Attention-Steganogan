@@ -72,14 +72,14 @@ CONFIG: Dict[str, Any] = {
     "critic":        "multiscale_edge",       # basic | multiscale_edge | False
 
     # Training
-    "data_depth":    2,             # bits per pixel
+    "data_depth":    1,             # bits per pixel
     "epochs":        32,
     "batch_size":    8,
     "num_workers":   8,
     "crop_size":     360,
 
     # Data paths
-    "dataset":       "div2k",
+    "dataset":       "mscoco",
     "data_root":     os.path.expanduser("~/Projects/datasets"),
     # "data_root":     os.path.expanduser("~/Attention-Steganogan/data"),
 
