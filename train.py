@@ -109,8 +109,8 @@ CONFIG: Dict[str, Any] = {
     "lambda_vgg":     0.1,          # VGG perceptual loss weight
     # Ablation flags (Table 9 / Table 10)
     "use_edge_net":   True,         # False → skip EdgeNet, use zeros edge_map
-    "attention_type": "msma",       # msma | eca | cbam | '' (none)
-    "use_inception":  True,         # False → skip InceptionDMK in backbone
+    "attention_type": "cbam",       # msma | eca | cbam | '' (none)
+    "use_inception":  False,         # False → skip InceptionDMK in backbone
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
