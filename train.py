@@ -110,7 +110,7 @@ CONFIG: Dict[str, Any] = {
     # Ablation flags (Table 9 / Table 10)
     "use_edge_net":   True,         # False → skip EdgeNet, use zeros edge_map
     "attention_type": "msma",       # msma | eca | cbam | '' (none)
-    "use_inception":  True,         # False → skip InceptionDMK in backbone
+    "use_inception":  False,         # False → skip InceptionDMK in backbone
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
