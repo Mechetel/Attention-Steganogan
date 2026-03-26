@@ -64,7 +64,7 @@ CONFIG: Dict[str, Any] = {
 
     # ── Network ───────────────────────────────────────────────────────────────
     # Choices: xunet | yenet | srnet | yedroudjnet | zhunet | siastegnet | efficientnetsteg
-    "network":          "srnet",
+    "network":          "xunet",
 
     # ── Network-specific hyper-parameters ────────────────────────────────────
     # YeNet
@@ -83,7 +83,7 @@ CONFIG: Dict[str, Any] = {
     "freeze_backbone":  False,      # freeze EfficientNet backbone (warm-up phase)
 
     # ── Training ─────────────────────────────────────────────────────────────
-    "epochs":           50,
+    "epochs":           100,
     "batch_size":       32,
     "num_workers":      4,
     "lr":               1e-4,
@@ -96,7 +96,7 @@ CONFIG: Dict[str, Any] = {
 
     # ── Data ─────────────────────────────────────────────────────────────────
     "data_root":        os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
-    "crop_size":        512,
+    "crop_size":        50,
     "stego_algs":       ["JMiPOD", "JUNIWARD", "UERD"],  # algorithms to include
     "val_frac":         0.1,
     "test_frac":        0.1,
@@ -106,7 +106,7 @@ CONFIG: Dict[str, Any] = {
     # ── Checkpointing ─────────────────────────────────────────────────────────
     "monitor":          "auc_roc",  # metric to optimise for best checkpoint
     "patience":         15,         # early stopping patience (epochs)
-    "save_every":       0,          # save periodic checkpoint every N epochs
+    "save_every":       5,          # save periodic checkpoint every N epochs
 }
 
 

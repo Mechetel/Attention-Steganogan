@@ -22,8 +22,10 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 try:
     from torch.amp import GradScaler, autocast
+    _AMP_SUPPORTS_DEVICE_TYPE = True
 except ImportError:
     from torch.cuda.amp import GradScaler, autocast
+    _AMP_SUPPORTS_DEVICE_TYPE = False
 from tqdm import tqdm
 
 from .metrics import SteganalysisMetrics
@@ -96,7 +98,7 @@ class Trainer:
             images = images.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
 
-            with autocast(device_type=self._amp_device, enabled=self._use_amp):
+            with (autocast(device_type=self._amp_device, enabled=self._use_amp) if _AMP_SUPPORTS_DEVICE_TYPE else autocast(enabled=self._use_amp)):
                 logits = self.model(images)
                 loss   = self.criterion(logits, labels)
 
@@ -144,7 +146,7 @@ class Trainer:
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
 
-                with autocast(device_type=self._amp_device, enabled=self._use_amp):
+                with (autocast(device_type=self._amp_device, enabled=self._use_amp) if _AMP_SUPPORTS_DEVICE_TYPE else autocast(enabled=self._use_amp)):
                     logits = self.model(images)
                     loss   = self.criterion(logits, labels)
 
