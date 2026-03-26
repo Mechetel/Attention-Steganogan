@@ -17,11 +17,11 @@ from steganogan.engine import SteganoGAN
 
 BASE = os.path.dirname(__file__)
 
-DENSE_CKPT    = os.path.join(BASE, "models/dense_dense/1773340283/32.rsbpp-0.965443.p")
-EDGEUNET_CKPT = os.path.join(BASE, "models/edge_unet_dense/1773386504/32.rsbpp-0.969229.p")
-EDGEASPP_CKPT = os.path.join(BASE, "models/edge_aspp_edge_aware_dense/1774256915/32.rsbpp-2.405477.p")
+DENSE_CKPT    = os.path.join(BASE, "models/div2k/dense_dense/1773340283/32.rsbpp-0.965443.p")
+EDGEUNET_CKPT = os.path.join(BASE, "models/div2k/edge_unet_dense/1773386504/32.rsbpp-0.969229.p")
+EDGEASPP_CKPT = os.path.join(BASE, "models/div2k/edge_aspp_edge_aware_dense/1774269623-d1/32.rsbpp-0.971016.p")
 COVER_PATH    = os.path.join(BASE, "data/callback_images/0015.png")
-OUT_PATH      = os.path.join(BASE, "comparison.png")
+OUT_PATH      = os.path.join(BASE, "comparison_50x.png")
 MESSAGE       = "Hello, SteganoGAN!"
 DISPLAY_SIZE  = 360
 AMPLIFY       = 50
@@ -92,9 +92,9 @@ COLS   = [orig_img, dense_img, unet_img, aspp_img,
           dense_resid_img, unet_resid_img, aspp_resid_img]
 LABELS = [
     "Original",
-    "Dense (e32)",
-    "Edge-UNet (e32)",
-    "Edge-ASPP (e15)",
+    "Dense",
+    "Edge-UNet",
+    "Edge-ASPP",
     f"Dense residual ×{AMPLIFY}",
     f"Edge-UNet residual ×{AMPLIFY}",
     f"Edge-ASPP residual ×{AMPLIFY}",
