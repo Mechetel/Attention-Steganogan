@@ -112,7 +112,7 @@ class SteganalysisMetrics:
         tpr_vals.append(1.0)
         fpr_vals.append(1.0)
 
-        trapz = getattr(np, "trapezoid", np.trapz)
+        trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
         return float(trapz(tpr_vals, fpr_vals))
 
     @staticmethod

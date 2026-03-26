@@ -95,8 +95,8 @@ CONFIG: Dict[str, Any] = {
     "lr_patience":      5,          # plateau patience
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    "data_root":        os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
-    "crop_size":        50,
+    "data_root":        os.path.expanduser("/workspace/alaska2-image-steganalysis"),
+    "crop_size":        512,
     "stego_algs":       ["JMiPOD", "JUNIWARD", "UERD"],  # algorithms to include
     "val_frac":         0.1,
     "test_frac":        0.1,
