@@ -1,0 +1,46 @@
+{
+  "epoch": 3,
+  "metrics": {
+    "accuracy": 0.7396,
+    "balanced_accuracy": 0.4999111111111111,
+    "auc_roc": 0.5000610725925926,
+    "tpr_at_fpr10": 0.10017777777777778,
+    "precision": 0.7499659632402995,
+    "recall": 0.9792888888888889,
+    "f1": 0.8494217424826522,
+    "val_loss": 0.6788163781166077
+  },
+  "config": {
+    "gpu": true,
+    "network": "yenet",
+    "srm_trainable": true,
+    "tlu_threshold": 3.0,
+    "abs_layer": true,
+    "clamp_val": 3.0,
+    "ca_reduction": 8,
+    "dropout": 0.5,
+    "freeze_backbone": false,
+    "epochs": 100,
+    "batch_size": 32,
+    "num_workers": 4,
+    "lr": 0.0001,
+    "weight_decay": 0.0005,
+    "scheduler": "cosine",
+    "lr_min": 1e-06,
+    "lr_patience": 5,
+    "data_root": "/workspace/alaska2-image-steganalysis",
+    "crop_size": 512,
+    "stego_algs": [
+      "JMiPOD",
+      "JUNIWARD",
+      "UERD"
+    ],
+    "val_frac": 0.1,
+    "test_frac": 0.1,
+    "balanced": true,
+    "max_samples": null,
+    "monitor": "auc_roc",
+    "patience": 15,
+    "save_every": 5
+  }
+}

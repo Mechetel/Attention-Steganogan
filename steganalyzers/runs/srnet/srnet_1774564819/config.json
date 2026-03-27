@@ -1,0 +1,33 @@
+{
+  "gpu": true,
+  "network": "srnet",
+  "srm_trainable": true,
+  "tlu_threshold": 3.0,
+  "abs_layer": true,
+  "clamp_val": 3.0,
+  "ca_reduction": 8,
+  "dropout": 0.5,
+  "freeze_backbone": false,
+  "epochs": 100,
+  "batch_size": 32,
+  "num_workers": 4,
+  "lr": 0.0001,
+  "weight_decay": 0.0005,
+  "scheduler": "cosine",
+  "lr_min": 1e-06,
+  "lr_patience": 5,
+  "data_root": "/workspace/alaska2-image-steganalysis",
+  "crop_size": 512,
+  "stego_algs": [
+    "JMiPOD",
+    "JUNIWARD",
+    "UERD"
+  ],
+  "val_frac": 0.1,
+  "test_frac": 0.1,
+  "balanced": true,
+  "max_samples": null,
+  "monitor": "auc_roc",
+  "patience": 15,
+  "save_every": 5
+}

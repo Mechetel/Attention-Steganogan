@@ -77,3 +77,10 @@ ls img_align_celeba | shuf -n 1000 | xargs -I{} mv img_align_celeba/{} train/_/
 rm celeba.zip
 jpg_to_png val/_
 jpg_to_png train/_
+
+
+
+
+
+curl -L -o /workspace/alaska2.zip https://www.kaggle.com/api/v1/datasets/download/mechetel/alaska2
+unzip alaska2.zip
