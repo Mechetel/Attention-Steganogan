@@ -175,7 +175,6 @@ def _build_scheduler(optimizer, cfg: Dict[str, Any]):
             mode="max",
             patience=cfg.get("lr_patience", 5),
             factor=0.5,
-            verbose=True,
         )
     else:
         raise ValueError(f"Unknown scheduler: {choice!r}")
