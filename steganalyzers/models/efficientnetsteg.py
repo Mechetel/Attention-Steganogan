@@ -4,23 +4,31 @@ EfficientNetSteg — EfficientNet-B0 fine-tuned for image steganalysis.
 
 Architecture
 ------------
-SRM pre-processing  : grouped Conv2d(3, 90, 5, groups=3) → abs → 1×1 proj → 3 ch
-                      Highlights noise residuals before the main backbone.
-EfficientNet-B0     : pretrained on ImageNet1K, backbone features (1 280-dim).
-Classifier head     : Dropout → Linear(1 280 → 512) → ReLU → Dropout →
-                      Linear(512 → num_classes)
+ImageNet normalisation  : registered buffers (mean / std), applied in forward()
+EfficientNet-B0         : pretrained on ImageNet1K, backbone features (1 280-dim).
+Classifier head         : Dropout → Linear(1 280 → 512) → ReLU → Dropout →
+                          Linear(512 → num_classes)
 
-The SRM layer is always trained from scratch.  The EfficientNet backbone is
-loaded with ImageNet weights.  Layers up to (but not including) ``unfreeze_from``
-can be frozen for the initial warm-up phase and later unlocked.
+Raw RGB pixels (in [0, 1]) are passed directly to the backbone after standard
+ImageNet normalisation.  No SRM preprocessing is used — EfficientNet is large
+enough to learn noise-residual features from raw pixels, and feeding SRM
+residuals into ImageNet-pretrained weights destroys the transfer learning
+advantage entirely (as shown by the ALASKA2 Kaggle 3rd-place solution,
+pfnet-research/kaggle-alaska2-3rd-place-solution).
+
+Training guidance
+-----------------
+Use SGD with Nesterov momentum (lr≈0.01, momentum=0.9) rather than Adam.
+The weak steganographic signal benefits from the consistent gradient
+accumulation that SGD+momentum provides.
 
 References
 ----------
 Tan, M. & Le, Q. V., "EfficientNet: Rethinking Model Scaling for Convolutional
 Neural Networks", ICML 2019.
 
-Boroumand et al., "Deep Residual Network for Steganalysis of Digital Images",
-IEEE TIFS 2019  (SRM preprocessing concept).
+Pfnet-research, "ALASKA2 3rd Place Solution" (Kaggle 2020) — no SRM,
+raw RGB + ImageNet normalisation + SGD + CutMix.
 """
 
 import torch
@@ -34,70 +42,16 @@ except ImportError:
     _WEIGHTS_ENUM = False
 
 from ..base import BaseSteganalyzer
-from ..kernels import get_srm_kernels
 
-
-# ── SRM pre-processor ──────────────────────────────────────────────────────────
-
-class _SRMPreprocessor(nn.Module):
-    """
-    Channel-independent SRM high-pass filter followed by a 1×1 projection.
-
-    Each input channel is convolved independently with the 30 SRM filters
-    (grouped convolution), then absolute value is taken, and a 1×1 conv
-    projects the 90-channel map back to ``out_channels`` (default 3) so the
-    EfficientNet backbone receives a standard 3-channel tensor.
-
-    Parameters
-    ----------
-    in_channels  : number of input image channels (3 for RGB)
-    out_channels : channels passed to the backbone (default 3)
-    srm_trainable: whether to fine-tune the SRM kernel weights
-    """
-
-    def __init__(
-        self,
-        in_channels: int = 3,
-        out_channels: int = 3,
-        srm_trainable: bool = True,
-    ) -> None:
-        super().__init__()
-        kernels = torch.from_numpy(get_srm_kernels())    # (30, 1, 5, 5)
-        # Replicate for each input channel → (30*in_channels, 1, 5, 5)
-        kernels = kernels.repeat(in_channels, 1, 1, 1)
-
-        self.srm = nn.Conv2d(
-            in_channels, 30 * in_channels,
-            kernel_size=5, padding=2, groups=in_channels, bias=False,
-        )
-        with torch.no_grad():
-            self.srm.weight.copy_(kernels)
-
-        if not srm_trainable:
-            self.srm.weight.requires_grad_(False)
-
-        self.proj = nn.Sequential(
-            nn.Conv2d(30 * in_channels, out_channels, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.srm(x).abs()
-        return self.proj(x)
-
-
-# ── Main model ─────────────────────────────────────────────────────────────────
 
 class EfficientNetSteg(BaseSteganalyzer):
     """
-    EfficientNet-B0 steganalyzer with SRM preprocessing.
+    EfficientNet-B0 steganalyzer trained on raw RGB pixels.
 
     Parameters
     ----------
-    in_channels    : input image channels (default 3)
+    in_channels    : input image channels (must be 3)
     num_classes    : output logits (default 2: cover / stego)
-    srm_trainable  : fine-tune SRM preprocessing filters (default True)
     freeze_backbone: freeze EfficientNet backbone weights during training.
                      Useful for a short warm-up of the head; call
                      :meth:`unfreeze_backbone` to unlock all layers later.
@@ -106,20 +60,18 @@ class EfficientNetSteg(BaseSteganalyzer):
 
     def __init__(
         self,
-        in_channels: int = 3,
-        num_classes: int = 2,
-        srm_trainable: bool = True,
+        in_channels: int  = 3,
+        num_classes: int  = 2,
         freeze_backbone: bool = False,
         dropout: float = 0.4,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 
-        # ── SRM pre-processor ────────────────────────────────────────────────
-        self.preprocessor = _SRMPreprocessor(
-            in_channels=in_channels,
-            out_channels=3,          # backbone always sees 3 channels
-            srm_trainable=srm_trainable,
-        )
+        # ── ImageNet normalisation (applied in forward, stays with the model) ──
+        mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+        std  = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+        self.register_buffer("img_mean", mean)
+        self.register_buffer("img_std",  std)
 
         # ── EfficientNet-B0 backbone (pretrained) ────────────────────────────
         if _WEIGHTS_ENUM:
@@ -127,7 +79,6 @@ class EfficientNetSteg(BaseSteganalyzer):
         else:
             backbone = efficientnet_b0(pretrained=True)
 
-        # Keep only the feature extractor; drop the original classifier
         self.features = backbone.features       # outputs (N, 1280, H/32, W/32)
         self.avgpool  = backbone.avgpool        # AdaptiveAvgPool2d → (N, 1280, 1, 1)
 
@@ -170,8 +121,8 @@ class EfficientNetSteg(BaseSteganalyzer):
     # ── Forward ───────────────────────────────────────────────────────────────
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.preprocessor(x)              # SRM noise residuals → (N, 3, H, W)
-        x = self.features(x)                  # (N, 1280, H/32, W/32)
-        x = self.avgpool(x)                   # (N, 1280, 1, 1)
-        x = torch.flatten(x, 1)              # (N, 1280)
-        return self.classifier(x)             # (N, num_classes)
+        x = (x - self.img_mean) / self.img_std   # ImageNet normalisation
+        x = self.features(x)                      # (N, 1280, H/32, W/32)
+        x = self.avgpool(x)                       # (N, 1280, 1, 1)
+        x = torch.flatten(x, 1)                  # (N, 1280)
+        return self.classifier(x)                 # (N, num_classes)

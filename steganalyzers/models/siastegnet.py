@@ -132,7 +132,7 @@ class _SiameseBranch(nn.Module):
     SRNet one of the strongest spatial steganalysis backbones.
     """
 
-    def __init__(self, in_channels: int = 3, srm_trainable: bool = True) -> None:
+    def __init__(self, in_channels: int = 3, srm_trainable: bool = False) -> None:
         super().__init__()
 
         # ── SRM preprocessing ─────────────────────────────────────────────────
@@ -151,13 +151,13 @@ class _SiameseBranch(nn.Module):
 
         self.bn0  = nn.BatchNorm2d(30 * in_channels)
         self.proj = nn.Sequential(
-            nn.Conv2d(30 * in_channels, 3, 1, bias=False),   # project back to 3 ch
-            nn.BatchNorm2d(3),
+            nn.Conv2d(30 * in_channels, 30, 1, bias=False),  # project to 30 ch
+            nn.BatchNorm2d(30),
             nn.ReLU(inplace=True),
         )
 
         # ── SRNet backbone (mirrors SRNet exactly) ────────────────────────────
-        self.type1s = nn.Sequential(_TypeI(3, 64), _TypeI(64, 16))
+        self.type1s = nn.Sequential(_TypeI(30, 64), _TypeI(64, 16))
         self.type2s = nn.Sequential(
             _TypeII(16), _TypeII(16), _TypeII(16), _TypeII(16), _TypeII(16),
         )
@@ -201,7 +201,7 @@ class SIAStegNet(BaseSteganalyzer):
         self,
         in_channels:   int  = 3,
         num_classes:   int  = 2,
-        srm_trainable: bool = True,
+        srm_trainable: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 

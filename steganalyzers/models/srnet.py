@@ -24,6 +24,7 @@ Type4 : Type2 body + skip + GAP         — residual then GlobalAvgPool,
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ..base import BaseSteganalyzer
 
@@ -115,10 +116,10 @@ class SRNet(BaseSteganalyzer):
     Architecture
     ------------
     type1s : Type1(in_channels→64), Type1(64→16)
-    type2s : Type2(16→16) × 5
-    type3s : Type3(16→16), Type3(16→64), Type3(64→128), Type3(128→256)
-    type4  : Type4(256→512)  + GAP
-    dense  : Linear(512→num_classes)
+    type2s : Type2(16→16) × 2
+    type3s : Type3(16→32), Type3(32→64), Type3(64→128)
+    type4  : Type4(128→256) + GAP
+    dense  : Linear(256→num_classes)
 
     Parameters
     ----------
@@ -129,6 +130,17 @@ class SRNet(BaseSteganalyzer):
     def __init__(self, in_channels: int = 3, num_classes: int = 2) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 
+        # Fixed Kapur-Voelz high-pass filter (same as XuNet) — removes content,
+        # amplifies noise residuals so Type1 sees the steganographic signal directly.
+        kv = torch.tensor([
+            [-1,  2, -2,  2, -1],
+            [ 2, -6,  8, -6,  2],
+            [-2,  8,-12,  8, -2],
+            [ 2, -6,  8, -6,  2],
+            [-1,  2, -2,  2, -1],
+        ], dtype=torch.float32) / 12.0
+        self.register_buffer("kv_kernel", kv.view(1, 1, 5, 5))
+
         self.type1s = nn.Sequential(
             Type1(in_channels, 64),
             Type1(64, 16),
@@ -136,18 +148,14 @@ class SRNet(BaseSteganalyzer):
         self.type2s = nn.Sequential(
             Type2(16, 16),
             Type2(16, 16),
-            Type2(16, 16),
-            Type2(16, 16),
-            Type2(16, 16),
         )
         self.type3s = nn.Sequential(
-            Type3(16,  16),
-            Type3(16,  64),
-            Type3(64,  128),
-            Type3(128, 256),
+            Type3(16,  32),
+            Type3(32,  64),
+            Type3(64, 128),
         )
-        self.type4 = Type4(256, 512)
-        self.dense = nn.Linear(512, num_classes)
+        self.type4 = Type4(128, 256)
+        self.dense = nn.Linear(256, num_classes)
 
         self._init_weights()
 
@@ -162,7 +170,13 @@ class SRNet(BaseSteganalyzer):
                 nn.init.xavier_normal_(m.weight)
                 nn.init.zeros_(m.bias)
 
+    def _hpf(self, x: torch.Tensor) -> torch.Tensor:
+        N, C, H, W = x.shape
+        kernel = self.kv_kernel.expand(C, 1, 5, 5)
+        return F.conv2d(x, kernel, padding=2, groups=C)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self._hpf(x)
         x = self.type1s(x)
         x = self.type2s(x)
         x = self.type3s(x)

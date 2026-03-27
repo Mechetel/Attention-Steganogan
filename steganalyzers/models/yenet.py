@@ -72,7 +72,7 @@ class YeNet(BaseSteganalyzer):
         in_channels:   int   = 3,
         num_classes:   int   = 2,
         tlu_threshold: float = 3.0,
-        srm_trainable: bool  = True,
+        srm_trainable: bool  = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 

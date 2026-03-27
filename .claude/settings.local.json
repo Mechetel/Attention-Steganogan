@@ -12,7 +12,10 @@
       "mcp__MCPMagic__create_text",
       "mcp__MCPMagic__create_rectangle",
       "mcp__MCPMagic__get_document_info",
-      "mcp__MCPMagic__join_channel"
+      "mcp__MCPMagic__join_channel",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''''name'''']\\) for x in data]\")"
     ]
   }
 }

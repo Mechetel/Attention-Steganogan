@@ -66,7 +66,7 @@ class _PreLayer3x3(nn.Module):
     filtered independently, then a 1×1 conv projects back to 25 channels.
     """
 
-    def __init__(self, in_channels: int = 1) -> None:
+    def __init__(self, in_channels: int = 1, srm_trainable: bool = False) -> None:
         super().__init__()
         self.in_channels = in_channels
 
@@ -81,6 +81,8 @@ class _PreLayer3x3(nn.Module):
         with torch.no_grad():
             self.conv.weight.copy_(torch.from_numpy(tiled))
             nn.init.zeros_(self.conv.bias)
+        if not srm_trainable:
+            self.conv.weight.requires_grad_(False)
 
         # Fold per-channel features → 25 channels (identity when in_channels=1)
         self.proj = (
@@ -100,7 +102,7 @@ class _PreLayer5x5(nn.Module):
     5 trainable 5×5 SRM filters (one bank per input channel).
     """
 
-    def __init__(self, in_channels: int = 1) -> None:
+    def __init__(self, in_channels: int = 1, srm_trainable: bool = False) -> None:
         super().__init__()
         self.in_channels = in_channels
 
@@ -115,6 +117,8 @@ class _PreLayer5x5(nn.Module):
         with torch.no_grad():
             self.conv.weight.copy_(torch.from_numpy(tiled))
             nn.init.zeros_(self.conv.bias)
+        if not srm_trainable:
+            self.conv.weight.requires_grad_(False)
 
         self.proj = (
             nn.Conv2d(5 * in_channels, 5, 1, bias=False)
@@ -133,10 +137,10 @@ class _PreLayer(nn.Module):
     Combined pre-processing: concat(3×3 bank, 5×5 bank) → 30 channels.
     """
 
-    def __init__(self, in_channels: int = 1) -> None:
+    def __init__(self, in_channels: int = 1, srm_trainable: bool = False) -> None:
         super().__init__()
-        self.layer3x3 = _PreLayer3x3(in_channels)
-        self.layer5x5 = _PreLayer5x5(in_channels)
+        self.layer3x3 = _PreLayer3x3(in_channels, srm_trainable)
+        self.layer5x5 = _PreLayer5x5(in_channels, srm_trainable)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([self.layer3x3(x), self.layer5x5(x)], dim=1)  # (N, 30, H, W)
@@ -227,11 +231,12 @@ class ZhuNet(BaseSteganalyzer):
 
     _SPP_DIM: int = 128 * 21   # 2688
 
-    def __init__(self, in_channels: int = 3, num_classes: int = 2) -> None:
+    def __init__(self, in_channels: int = 3, num_classes: int = 2,
+                 srm_trainable: bool = False) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 
         # ── Pre-processing ──────────────────────────────────────────────────
-        self.pre = _PreLayer(in_channels)    # → (N, 30, H, W)
+        self.pre = _PreLayer(in_channels, srm_trainable)    # → (N, 30, H, W)
 
         # ── Depth-wise separable blocks ─────────────────────────────────────
         self.dws1 = _DWSConv(30)

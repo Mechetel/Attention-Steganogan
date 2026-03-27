@@ -106,12 +106,12 @@ class Trainer:
             if self._use_amp:
                 self._scaler.scale(loss).backward()
                 self._scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=5.0)
                 self._scaler.step(self.optimizer)
                 self._scaler.update()
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=5.0)
                 self.optimizer.step()
 
             with torch.no_grad():

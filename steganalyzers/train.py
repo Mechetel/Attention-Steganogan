@@ -40,7 +40,7 @@ os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 import torch
-from torch.optim import Adam
+from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
 # ── Package imports ────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ sys.path.insert(0, _ROOT)
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
 from steganalyzers.data       import DataLoaderFactory
 from steganalyzers.training   import (
-    Trainer, MetricsLogger, CheckpointSaver, EarlyStopping, LRMonitor,
+    Trainer, MetricsLogger, CheckpointSaver, LRMonitor,
 )
 
 
@@ -67,8 +67,8 @@ CONFIG: Dict[str, Any] = {
     "network":          "xunet",
 
     # ── Network-specific hyper-parameters ────────────────────────────────────
-    # YeNet
-    "srm_trainable":    True,       # fine-tune SRM filters
+    # YeNet / ZhuNet / SiaStegNet
+    "srm_trainable":    False,      # keep SRM fixed (frozen) — training it corrupts HPF
     "tlu_threshold":    3.0,        # YeNet TLU clamp value
 
     # YedroudjNet / ZhuNet / SIAStegNet
@@ -86,13 +86,15 @@ CONFIG: Dict[str, Any] = {
     "epochs":           100,
     "batch_size":       32,
     "num_workers":      4,
-    "lr":               1e-4,
-    "weight_decay":     5e-4,
+    "lr":               1e-2,       # SGD base LR (scaled from 0.2 * bs/128)
+    "momentum":         0.9,        # SGD momentum
+    "nesterov":         True,       # Nesterov momentum
+    "weight_decay":     1e-5,
 
     # LR scheduler: "cosine" | "plateau" | None
-    "scheduler":        "cosine",
+    "scheduler":        "plateau",
     "lr_min":           1e-6,       # cosine min LR
-    "lr_patience":      5,          # plateau patience
+    "lr_patience":      5,          # plateau patience (ReduceLROnPlateau)
 
     # ── Data ─────────────────────────────────────────────────────────────────
     "data_root":        os.path.expanduser("/workspace/alaska2-image-steganalysis"),
@@ -104,9 +106,7 @@ CONFIG: Dict[str, Any] = {
     "max_samples":      None,       # None = use all; int = quick experiment cap
 
     # ── Checkpointing ─────────────────────────────────────────────────────────
-    "monitor":          "auc_roc",  # metric to optimise for best checkpoint
-    "patience":         15,         # early stopping patience (epochs)
-    "save_every":       5,          # save periodic checkpoint every N epochs
+    "monitor":          "auc_roc",  # metric to track for best checkpoint label
 }
 
 
@@ -146,14 +146,11 @@ def _build_network(cfg: Dict[str, Any]) -> torch.nn.Module:
         return SIAStegNet(
             **common,
             srm_trainable=cfg.get("srm_trainable", False),
-            ca_reduction=cfg.get("ca_reduction", 8),
-            dropout=cfg.get("dropout", 0.5),
         )
 
     elif choice == "efficientnetsteg":
         return EfficientNetSteg(
             **common,
-            srm_trainable=cfg.get("srm_trainable", False),
             freeze_backbone=cfg.get("freeze_backbone", False),
             dropout=cfg.get("dropout", 0.4),
         )
@@ -236,10 +233,12 @@ def main() -> None:
         json.dump(CONFIG, f, indent=2, default=str)
 
     # ── Optimiser & scheduler ─────────────────────────────────────────────────
-    optimizer = Adam(
+    optimizer = SGD(
         network.parameters(),
         lr=CONFIG["lr"],
-        weight_decay=CONFIG.get("weight_decay", 5e-4),
+        momentum=CONFIG.get("momentum", 0.9),
+        nesterov=CONFIG.get("nesterov", True),
+        weight_decay=CONFIG.get("weight_decay", 1e-5),
     )
     scheduler = _build_scheduler(optimizer, CONFIG)
 
@@ -254,16 +253,10 @@ def main() -> None:
             checkpoint_dir=log_dir,
             monitor=CONFIG["monitor"],
             mode="max",
-            save_best_only=True,
-            save_every=CONFIG.get("save_every", 0),
+            save_best_only=False,
+            save_every=1,
             verbose=True,
             config=CONFIG,
-        ),
-        EarlyStopping(
-            monitor=CONFIG["monitor"],
-            patience=CONFIG.get("patience", 15),
-            mode="max",
-            verbose=True,
         ),
     ]
 
