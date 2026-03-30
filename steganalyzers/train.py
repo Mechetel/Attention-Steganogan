@@ -63,7 +63,7 @@ CONFIG: Dict[str, Any] = {
     "gpu":              True,
 
     # ── Network ───────────────────────────────────────────────────────────────
-    # Choices: xunet | yenet | srnet | yedroudjnet | zhunet | siastegnet | efficientnetsteg
+    # Choices: xunet+ | yenet+ | srnet+ | yedroudjnet+ | zhunet- | siastegnet- | efficientnetsteg+
     "network":          "xunet",
 
     # ── Network-specific hyper-parameters ────────────────────────────────────

@@ -37,7 +37,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
-from steganalyzers.models import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet
+from steganalyzers.models import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
 
 try:
     from torch.amp import autocast
@@ -54,21 +54,30 @@ CONFIG = {
     "gpu":          False,
 
     # ── Network ───────────────────────────────────────────────────────────────
-    "network":      "xunet",
+    # "network":      "XuNet",
+    # "network":      "YeNet",
+    # "network":      "YedroudjNet",
+    "network":      "SRNet",
+    # "network":      "EfficientNetSteg",
 
     # Network hyper-params (must match checkpoint)
-    "srm_trainable": True,
+    "srm_trainable": False,
     "tlu_threshold": 3.0,
     "abs_layer":     True,
     "clamp_val":     3.0,
     "ca_reduction":  8,
-    "dropout":       0.5,
+    "dropout":       0.4,
+    "freeze_backbone": False,
 
     # ── Checkpoint ────────────────────────────────────────────────────────────
     "checkpoint": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/xunet/"
-        "xunet_1774554056/best_epoch0022.pt"
+        "Attention-Steganogan/steganalyzers/runs/srnet/"
+        # "xunet_1774554056/best_epoch0022.pt"
+        # "yenet_1774595756/best_epoch0030.pt"
+        # "yedroudjnet_1774618114/best_epoch0030.pt"
+        "srnet_1774639446/best_epoch0021.pt"
+        # "efficientnetsteg_1774628820/best_epoch0030.pt"
     ),
 
     # ── Data ─────────────────────────────────────────────────────────────────
@@ -81,8 +90,12 @@ CONFIG = {
     # ── Output ────────────────────────────────────────────────────────────────
     "output_dir": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/xunet/"
-        "xunet_1774554056"
+        "Attention-Steganogan/steganalyzers/runs/srnet/"
+        # "xunet_1774554056"
+        # "yenet_1774595756"
+        # "yedroudjnet_1774618114"
+        "srnet_1774639446"
+        # "efficientnetsteg_1774628820"
     ),
 }
 
@@ -149,9 +162,11 @@ def _build_network(cfg) -> nn.Module:
         return ZhuNet(**common, srm_trainable=cfg.get("srm_trainable", True))
     elif choice == "siastegnet":
         return SIAStegNet(**common,
-                          srm_trainable=cfg.get("srm_trainable", True),
-                          ca_reduction=cfg.get("ca_reduction", 8),
-                          dropout=cfg.get("dropout", 0.5))
+                          srm_trainable=cfg.get("srm_trainable", False))
+    elif choice == "efficientnetsteg":
+        return EfficientNetSteg(**common,
+                                freeze_backbone=cfg.get("freeze_backbone", False),
+                                dropout=cfg.get("dropout", 0.4))
     else:
         raise ValueError(f"Unknown network: {choice!r}")
 
@@ -248,7 +263,8 @@ def compute_metrics(probs: np.ndarray, labels: np.ndarray, fpr_target=0.1):
 
 # ── Plot ─────────────────────────────────────────────────────────────────────
 
-def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str) -> None:
+def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str,
+             network_name: str = "") -> None:
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -258,12 +274,12 @@ def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str) -> Non
         return
 
     fig, ax = plt.subplots(figsize=(7, 6))
-    ax.plot(fpr, tpr, color="#2196F3", lw=2, label=f"XuNet  AUC = {auc:.4f}")
+    ax.plot(fpr, tpr, color="#2196F3", lw=2, label=f"{network_name}  AUC = {auc:.4f}")
     ax.plot([0, 1], [0, 1], color="gray", lw=1, linestyle="--", label="Random")
     ax.axvline(x=0.1, color="#F44336", lw=1, linestyle=":", label="FPR = 0.10")
     ax.set_xlabel("False Positive Rate", fontsize=13)
     ax.set_ylabel("True Positive Rate", fontsize=13)
-    ax.set_title("ROC Curve — XuNet on ALASKA2 (full dataset)", fontsize=14)
+    ax.set_title(f"ROC Curve — {network_name} on ALASKA2 (full dataset)", fontsize=14)
     ax.legend(fontsize=11)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.02)
@@ -277,8 +293,9 @@ def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str) -> Non
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    network_name = CONFIG["network"]
     print("=" * 60)
-    print("XuNet — Full ALASKA2 ROC / AUC Analysis")
+    print(f"{network_name} — Full ALASKA2 ROC / AUC Analysis")
     print("=" * 60)
 
     # Device
@@ -366,7 +383,8 @@ def main() -> None:
     print(f"\nResults saved → {json_path}")
 
     plot_roc(fpr_arr, tpr_arr, metrics["auc_roc"],
-             out_path=os.path.join(out_dir, "roc_curve.png"))
+             out_path=os.path.join(out_dir, "roc_curve.png"),
+             network_name=network_name)
 
 
 if __name__ == "__main__":
