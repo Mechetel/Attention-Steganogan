@@ -1,0 +1,147 @@
+{
+  "XuNet": {
+    "SteganoGAN-Dense": {
+      "accuracy": 0.4615,
+      "balanced_accuracy": 0.4615,
+      "auc_roc": 0.353441,
+      "tpr_at_fpr10": 0.067,
+      "precision": 0.40350877192982454,
+      "recall": 0.161,
+      "f1": 0.23016440314510367
+    },
+    "Edge-UNet": {
+      "accuracy": 0.5245,
+      "balanced_accuracy": 0.5245,
+      "auc_roc": 0.553447,
+      "tpr_at_fpr10": 0.116,
+      "precision": 0.5466666666666666,
+      "recall": 0.287,
+      "f1": 0.37639344262295077
+    },
+    "Edge-ASPP": {
+      "accuracy": 0.489,
+      "balanced_accuracy": 0.489,
+      "auc_roc": 0.47722000000000003,
+      "tpr_at_fpr10": 0.085,
+      "precision": 0.47577092511013214,
+      "recall": 0.216,
+      "f1": 0.29711141678129294
+    }
+  },
+  "YeNet": {
+    "SteganoGAN-Dense": {
+      "accuracy": 0.478,
+      "balanced_accuracy": 0.47800000000000004,
+      "auc_roc": 0.428137,
+      "tpr_at_fpr10": 0.078,
+      "precision": 0.4349112426035503,
+      "recall": 0.147,
+      "f1": 0.21973094170403587
+    },
+    "Edge-UNet": {
+      "accuracy": 0.5645,
+      "balanced_accuracy": 0.5645,
+      "auc_roc": 0.560119,
+      "tpr_at_fpr10": 0.195,
+      "precision": 0.6262230919765166,
+      "recall": 0.32,
+      "f1": 0.42356055592322966
+    },
+    "Edge-ASPP": {
+      "accuracy": 0.5155,
+      "balanced_accuracy": 0.5155000000000001,
+      "auc_roc": 0.534297,
+      "tpr_at_fpr10": 0.12,
+      "precision": 0.5375302663438256,
+      "recall": 0.222,
+      "f1": 0.3142250530785563
+    }
+  },
+  "YedroudjNet": {
+    "SteganoGAN-Dense": {
+      "accuracy": 0.474,
+      "balanced_accuracy": 0.474,
+      "auc_roc": 0.446638,
+      "tpr_at_fpr10": 0.106,
+      "precision": 0.44396551724137934,
+      "recall": 0.206,
+      "f1": 0.2814207650273224
+    },
+    "Edge-UNet": {
+      "accuracy": 0.4805,
+      "balanced_accuracy": 0.4805,
+      "auc_roc": 0.41228600000000004,
+      "tpr_at_fpr10": 0.112,
+      "precision": 0.4591194968553459,
+      "recall": 0.219,
+      "f1": 0.2965470548408937
+    },
+    "Edge-ASPP": {
+      "accuracy": 0.611,
+      "balanced_accuracy": 0.611,
+      "auc_roc": 0.6436390000000001,
+      "tpr_at_fpr10": 0.279,
+      "precision": 0.6504065040650406,
+      "recall": 0.48,
+      "f1": 0.5523590333716916
+    }
+  },
+  "SRNet": {
+    "SteganoGAN-Dense": {
+      "accuracy": 0.46,
+      "balanced_accuracy": 0.45999999999999996,
+      "auc_roc": 0.264452,
+      "tpr_at_fpr10": 0.074,
+      "precision": 0.35294117647058826,
+      "recall": 0.096,
+      "f1": 0.1509433962264151
+    },
+    "Edge-UNet": {
+      "accuracy": 0.469,
+      "balanced_accuracy": 0.469,
+      "auc_roc": 0.257806,
+      "tpr_at_fpr10": 0.091,
+      "precision": 0.3931034482758621,
+      "recall": 0.114,
+      "f1": 0.17674418604651163
+    },
+    "Edge-ASPP": {
+      "accuracy": 0.4835,
+      "balanced_accuracy": 0.4835,
+      "auc_roc": 0.416485,
+      "tpr_at_fpr10": 0.08,
+      "precision": 0.4482758620689655,
+      "recall": 0.143,
+      "f1": 0.21683093252463984
+    }
+  },
+  "EfficientNetSteg": {
+    "SteganoGAN-Dense": {
+      "accuracy": 0.582,
+      "balanced_accuracy": 0.582,
+      "auc_roc": 0.500609,
+      "tpr_at_fpr10": 0.268,
+      "precision": 0.6990291262135923,
+      "recall": 0.288,
+      "f1": 0.40793201133144474
+    },
+    "Edge-UNet": {
+      "accuracy": 0.606,
+      "balanced_accuracy": 0.606,
+      "auc_roc": 0.5612429999999999,
+      "tpr_at_fpr10": 0.314,
+      "precision": 0.7304347826086957,
+      "recall": 0.336,
+      "f1": 0.4602739726027397
+    },
+    "Edge-ASPP": {
+      "accuracy": 0.5895,
+      "balanced_accuracy": 0.5895,
+      "auc_roc": 0.634375,
+      "tpr_at_fpr10": 0.267,
+      "precision": 0.7096018735362998,
+      "recall": 0.303,
+      "f1": 0.4246671338472319
+    }
+  }
+}

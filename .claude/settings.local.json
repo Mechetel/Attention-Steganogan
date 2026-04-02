@@ -4,18 +4,8 @@
       "WebFetch(domain:github.com)",
       "WebSearch",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "mcp__MCPMagic__set_text_content",
-      "mcp__MCPMagic__create_frame",
-      "mcp__MCPMagic__set_fill_color",
-      "mcp__MCPMagic__set_stroke_color",
-      "mcp__MCPMagic__set_corner_radius",
-      "mcp__MCPMagic__create_text",
-      "mcp__MCPMagic__create_rectangle",
-      "mcp__MCPMagic__get_document_info",
-      "mcp__MCPMagic__join_channel",
       "Bash(gh repo:*)",
-      "Bash(gh api:*)",
-      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(x[''''name'''']\\) for x in data]\")"
+      "Bash(gh api:*)"
     ]
   }
 }
