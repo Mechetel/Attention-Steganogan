@@ -99,14 +99,18 @@ CONFIG: Dict[str, Any] = {
     # conf_5 (4,  1.0,   0.01,        1.0,        48) +
     # conf_6 (10, 100.0, 0.01,        0.5,        24) +
     # EdgeAwareDenseASPPEncoder hyper-parameters
-    "T":             4,             # ConvGRU iterations (fewer needed with DenseASPP)
-    "eta":           1.0,           # perturbation step size
-    "gamma":         0.8,           # iterative loss decay factor
-    "alpha":         100.0,         # image-quality loss weight
-    "hidden_ch":     48,            # ConvGRU hidden channels
-    "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
-    "lambda_edge":   0.01,          # edge regularisation weight
-    "lambda_vgg":    0.1,           # VGG perceptual loss weight
+    "T":              4,            # ConvGRU iterations (fewer needed with DenseASPP)
+    "eta":            1.0,          # perturbation step size
+    "gamma":          0.8,          # iterative loss decay factor
+    "alpha":          100.0,        # image-quality loss weight
+    "hidden_ch":      48,           # ConvGRU hidden channels
+    "edge_epsilon":   0.05,         # edge mask floor (prevents dead gradients)
+    "lambda_edge":    0.01,         # edge regularisation weight
+    "lambda_vgg":     0.1,          # VGG perceptual loss weight
+    # Ablation flags (Table 9 / Table 10)
+    "use_edge_net":   True,         # False → skip EdgeNet, use zeros edge_map
+    "attention_type": "cbam",       # msma | eca | cbam | '' (none)
+    "use_inception":  False,         # False → skip InceptionDMK in backbone
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
@@ -129,13 +133,16 @@ def _build_encoder(cfg: Dict[str, Any]) -> torch.nn.Module:
         )
     elif choice == "edge_aspp":
         enc = EdgeAwareDenseASPPEncoder(
-            data_depth   = d,
-            T            = cfg.get("T", 8),
-            eta          = cfg.get("eta", 1.0),
-            gamma        = cfg.get("gamma", 0.8),
-            alpha        = cfg.get("alpha", 100.0),
-            hidden_ch    = cfg.get("hidden_ch", 48),
-            edge_epsilon = cfg.get("edge_epsilon", 0.05),
+            data_depth     = d,
+            T              = cfg.get("T", 8),
+            eta            = cfg.get("eta", 1.0),
+            gamma          = cfg.get("gamma", 0.8),
+            alpha          = cfg.get("alpha", 100.0),
+            hidden_ch      = cfg.get("hidden_ch", 48),
+            edge_epsilon   = cfg.get("edge_epsilon", 0.05),
+            use_edge_net   = cfg.get("use_edge_net", True),
+            attention_type = cfg.get("attention_type", "msma"),
+            use_inception  = cfg.get("use_inception", True),
         )
         # Store loss weights on encoder for Trainer to pick up
         enc.lambda_edge = cfg.get("lambda_edge", 0.01)

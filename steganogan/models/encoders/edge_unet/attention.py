@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Multi-Scale Median Attention (MSMA) module.
-Ji, Zhang, Lv – Applied Sciences 2025, Section 3.2.
+Attention modules for steganography encoder ablation experiments.
+
+  MSMAModule  — Multi-Scale Median Attention (Ji, Zhang, Lv 2025, Section 3.2)
+  ECAModule   — Efficient Channel Attention (Wang et al., ECA-Net, CVPR 2020)
+  CBAMModule  — Convolutional Block Attention Module (Woo et al., ECCV 2018)
 """
+
+import math
 
 import torch
 import torch.nn as nn
