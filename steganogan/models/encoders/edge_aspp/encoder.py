@@ -37,8 +37,8 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
 
     Architecture summary
     --------------------
-    1. EdgeNet:      cover → edge_map (N, 1, H, W) in [0, 1]
-    2. DenseASPP:    cover → features (N, 64, H, W) with MSMA + InceptionDMK
+    1. EdgeNet:      cover → edge_map (N, 1, H, W) in [0, 1]  [optional]
+    2. DenseASPP:    cover → features (N, 64, H, W) with optional attention + InceptionDMK
     3. Edge Fusion:  (features, payload, edge_map) → fused (N, 64, H, W)
     4. Iterative:    ConvGRU refinement with edge-masked perturbations
          Training  → returns list of T stego images for weighted loss
@@ -46,24 +46,30 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
 
     Parameters
     ----------
-    data_depth  : bits per pixel (D)
-    T           : GRU optimisation iterations (default 8)
-    eta         : perturbation step size η (default 1.0)
-    gamma       : iterative loss decay factor γ (default 0.8)
-    alpha       : image-quality loss weight α (default 100.0)
-    hidden_ch   : ConvGRU hidden channels (default 48)
-    edge_epsilon: minimum mask value to prevent dead gradients (default 0.05)
+    data_depth     : bits per pixel (D)
+    T              : GRU optimisation iterations (default 8)
+    eta            : perturbation step size η (default 1.0)
+    gamma          : iterative loss decay factor γ (default 0.8)
+    alpha          : image-quality loss weight α (default 100.0)
+    hidden_ch      : ConvGRU hidden channels (default 48)
+    edge_epsilon   : minimum mask value to prevent dead gradients (default 0.05)
+    use_edge_net   : enable learned EdgeNet; when False edge_map=zeros (default True)
+    attention_type : 'msma' | 'eca' | 'cbam' | '' — backbone attention (default 'msma')
+    use_inception  : enable InceptionDMK in backbone (default True)
     """
 
     def __init__(
         self,
-        data_depth:   int,
-        T:            int   = 8,
-        eta:          float = 1.0,
-        gamma:        float = 0.8,
-        alpha:        float = 100.0,
-        hidden_ch:    int   = 48,
-        edge_epsilon: float = 0.05,
+        data_depth:     int,
+        T:              int   = 8,
+        eta:            float = 1.0,
+        gamma:          float = 0.8,
+        alpha:          float = 100.0,
+        hidden_ch:      int   = 48,
+        edge_epsilon:   float = 0.05,
+        use_edge_net:   bool  = True,
+        attention_type: str   = "msma",
+        use_inception:  bool  = True,
     ) -> None:
         super().__init__(data_depth)
         self.T            = T
@@ -72,13 +78,18 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
         self.alpha        = alpha
         self.edge_epsilon = edge_epsilon
         self._hidden_ch   = hidden_ch
+        self._use_edge_net = use_edge_net
 
         # ── Pillar A: Learned edge detector ─────────────────────────────
-        self.edge_net = EdgeNet()
+        self.edge_net = EdgeNet() if use_edge_net else None
 
         # ── Pillar B: DenseASPP feature backbone ────────────────────────
         feat_ch = 64
-        self.backbone = DenseASPPBackbone(in_ch=3, out_ch=feat_ch)
+        self.backbone = DenseASPPBackbone(
+            in_ch=3, out_ch=feat_ch,
+            attention_type=attention_type,
+            use_inception=use_inception,
+        )
 
         # ── Edge-aware dense message fusion ─────────────────────────────
         self.fusion = EdgeAwareDenseMessageFusion(
@@ -190,8 +201,14 @@ class EdgeAwareDenseASPPEncoder(BaseEncoder):
         if training is None:
             training = self.training
 
-        # 1. Learned edge detection
-        edge_map = self.edge_net(cover)          # (N, 1, H, W)
+        # 1. Learned edge detection (or zeros when disabled)
+        if self._use_edge_net:
+            edge_map = self.edge_net(cover)      # (N, 1, H, W)
+        else:
+            edge_map = torch.zeros(
+                cover.shape[0], 1, cover.shape[2], cover.shape[3],
+                device=cover.device, dtype=cover.dtype,
+            )
 
         # 2. DenseASPP feature extraction with MSMA + InceptionDMK
         features = self.backbone(cover)          # (N, 64, H, W)
