@@ -17,34 +17,38 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
-from ..edge_unet.attention import MSMAModule
 from ..edge_unet.inception import InceptionDMKModule
+from .attention import build_attention
 
 
 class DenseASPPBackbone(nn.Module):
     """
-    DenseASPP feature backbone with integrated MSMA attention.
+    DenseASPP feature backbone with optional MSMA/ECA/CBAM attention and InceptionDMK.
 
     Architecture
     ------------
     Stem:      Conv(3→64) → BN → LReLU → Conv(64→64) → BN → LReLU
-    MSMA_stem: MSMAModule(64)
+    Attn_stem: optional attention after stem (attention_type)
     DenseASPP: 4 dilated branches (rates 3, 6, 12, 18) with dense connections
                64 → +32 → +32 → +32 → +32 = 192 channels
     Reduce:    Conv(192→out_ch, 1×1) → BN → LReLU
-    MSMA_aspp: MSMAModule(out_ch)
-    Inception: InceptionDMKModule(out_ch)
+    Attn_aspp: optional attention after reduce (attention_type)
+    Inception: optional InceptionDMKModule(out_ch)
 
     Parameters
     ----------
-    in_ch  : input channels (default 3 for RGB)
-    out_ch : output feature channels (default 64, must be divisible by 4 for MSMA/Inception)
+    in_ch          : input channels (default 3 for RGB)
+    out_ch         : output feature channels (default 64, divisible by 4 for MSMA)
+    attention_type : 'msma' | 'eca' | 'cbam' | '' — which attention to use (default 'msma')
+    use_inception  : attach InceptionDMK after the attention (default True)
 
     Input : (N, in_ch, H, W)
     Output: (N, out_ch, H, W)
     """
 
-    def __init__(self, in_ch: int = 3, out_ch: int = 64) -> None:
+    def __init__(self, in_ch: int = 3, out_ch: int = 64,
+                 attention_type: str = "msma",
+                 use_inception: bool = True) -> None:
         super().__init__()
         assert out_ch % 4 == 0, f"out_ch must be divisible by 4, got {out_ch}"
 
@@ -60,7 +64,7 @@ class DenseASPPBackbone(nn.Module):
             nn.BatchNorm2d(stem_ch),
             nn.LeakyReLU(0.2, inplace=True),
         )
-        self.msma_stem = MSMAModule(stem_ch)
+        self.attn_stem = build_attention(stem_ch, attention_type)
 
         # ── DenseASPP (4 dilated branches with dense connections) ──────
         # Branch 1: input = stem_ch (64)
@@ -95,19 +99,20 @@ class DenseASPPBackbone(nn.Module):
         # Total after dense concat: stem_ch + 4*branch_ch = 192
         total_ch = stem_ch + 4 * branch_ch
 
-        # ── Channel reduction + MSMA + InceptionDMK ────────────────────
+        # ── Channel reduction + optional attention + optional InceptionDMK ─
         self.reduce = nn.Sequential(
             nn.Conv2d(total_ch, out_ch, kernel_size=1, bias=False),
             nn.BatchNorm2d(out_ch),
             nn.LeakyReLU(0.2, inplace=True),
         )
-        self.msma_aspp = MSMAModule(out_ch)
-        self.inception = InceptionDMKModule(out_ch)
+        self.attn_aspp = build_attention(out_ch, attention_type)
+        self.inception = InceptionDMKModule(out_ch) if use_inception else None
 
     # ── Segmented helpers for gradient checkpointing ─────────────────────
 
     def _stem_forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.msma_stem(self.stem(x))
+        f = self.stem(x)
+        return self.attn_stem(f) if self.attn_stem is not None else f
 
     def _aspp_forward(self, f_att: torch.Tensor) -> torch.Tensor:
         """Dense ASPP block — all 7 intermediate tensors live only during
@@ -124,7 +129,10 @@ class DenseASPPBackbone(nn.Module):
         return torch.cat([f_att, d1, d2, d3, d4], dim=1)        # 192 ch
 
     def _reduce_forward(self, cat_all: torch.Tensor) -> torch.Tensor:
-        return self.inception(self.msma_aspp(self.reduce(cat_all)))
+        f = self.reduce(cat_all)
+        if self.attn_aspp  is not None: f = self.attn_aspp(f)
+        if self.inception  is not None: f = self.inception(f)
+        return f
 
     # ── Forward ──────────────────────────────────────────────────────────
 
