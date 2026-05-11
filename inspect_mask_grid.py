@@ -39,7 +39,7 @@ IMAGES     = [
     os.path.expanduser("~/Projects/datasets/div2k/val/_/0806.png"),
 ]
 CHECKPOINT = os.path.join(REPO, "models/div2k/edge_aspp_edge_aware_dense/1774269623-d1/25.rsbpp-0.973312.p")
-OUT_DIR    = os.path.join(REPO, "edge_vis")
+OUT_DIR    = os.path.join(REPO, "images")
 
 
 # ── Helpers (same as inspect_edges_mask.py) ───────────────────────────────────
