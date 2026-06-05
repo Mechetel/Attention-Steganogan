@@ -288,34 +288,48 @@ class EdgeAwareIterativeLoss:
     Extended iterative loss for EdgeAwareDenseASPPEncoder.
 
     L_total = Σ γ^(T-1-t) × [L_D + α×L_E + L_C]
-            + λ_edge × SobelEdgeRegularisation(edge_map, cover)
-            + λ_vgg  × VGGPerceptualLoss(cover, S_final)
+            + λ_edge  × SobelEdgeRegularisation(edge_map, cover)
+            + λ_vgg   × VGGPerceptualLoss(cover, S_final)
+            + λ_stega × CE(Steganalyzer(S_final → [0,1]), target=cover)
+
+    The steganalyzer term is an optional "second critic": a frozen
+    pretrained binary cover/stego classifier whose cross-entropy against the
+    cover label (0) the encoder is pushed to minimise.  This makes the
+    encoder produce stego images that the steganalyzer classifies as cover.
 
     Parameters
     ----------
-    decoder      : decoder module
-    gamma        : per-step discount factor (default 0.8)
-    alpha        : image-quality loss weight (default 100.0)
-    critic       : optional critic module
-    lambda_edge  : edge regularisation weight (default 0.01)
-    lambda_vgg   : VGG perceptual loss weight (default 0.1)
+    decoder       : decoder module
+    gamma         : per-step discount factor (default 0.8)
+    alpha         : image-quality loss weight (default 100.0)
+    critic        : optional WGAN critic module
+    lambda_edge   : edge regularisation weight (default 0.01)
+    lambda_vgg    : VGG perceptual loss weight (default 0.1)
+    steganalyzer  : optional frozen binary steganalyzer (logits over [cover, stego]).
+                    Input is expected in [0, 1]; the loss handles the
+                    [-1, 1] → [0, 1] conversion internally.
+    lambda_stega  : steganalyzer term weight (default 1.0)
     """
 
     def __init__(
         self,
-        decoder:     nn.Module,
-        gamma:       float = 0.8,
-        alpha:       float = 100.0,
-        critic:      Optional[nn.Module] = None,
-        lambda_edge: float = 0.01,
-        lambda_vgg:  float = 0.1,
+        decoder:      nn.Module,
+        gamma:        float = 0.8,
+        alpha:        float = 100.0,
+        critic:       Optional[nn.Module] = None,
+        lambda_edge:  float = 0.01,
+        lambda_vgg:   float = 0.1,
+        steganalyzer: Optional[nn.Module] = None,
+        lambda_stega: float = 1.0,
     ) -> None:
-        self.decoder     = decoder
-        self.gamma       = gamma
-        self.alpha       = alpha
-        self.critic      = critic
-        self.lambda_edge = lambda_edge
-        self.lambda_vgg  = lambda_vgg
+        self.decoder      = decoder
+        self.gamma        = gamma
+        self.alpha        = alpha
+        self.critic       = critic
+        self.lambda_edge  = lambda_edge
+        self.lambda_vgg   = lambda_vgg
+        self.steganalyzer = steganalyzer
+        self.lambda_stega = lambda_stega
 
         self.vgg_loss  = VGGPerceptualLoss()
         self.edge_reg  = SobelEdgeRegularisation()
@@ -324,6 +338,8 @@ class EdgeAwareIterativeLoss:
         """Move auxiliary modules to the target device."""
         self.vgg_loss = self.vgg_loss.to(device)
         self.edge_reg = self.edge_reg.to(device)
+        if self.steganalyzer is not None:
+            self.steganalyzer = self.steganalyzer.to(device)
         return self
 
     def __call__(
@@ -336,9 +352,9 @@ class EdgeAwareIterativeLoss:
         """
         Parameters
         ----------
-        cover      : (N,3,H,W) cover image
+        cover      : (N,3,H,W) cover image in [-1, 1]
         payload    : (N,D,H,W) ground-truth bits
-        stego_list : list of T stego tensors from the iterative encoder
+        stego_list : list of T stego tensors from the iterative encoder in [-1, 1]
         edge_map   : (N,1,H,W) predicted edge map (optional; needed for edge reg)
         """
         T     = len(stego_list)
@@ -372,5 +388,13 @@ class EdgeAwareIterativeLoss:
         # Edge regularisation
         if edge_map is not None and self.lambda_edge > 0:
             total = total + self.lambda_edge * self.edge_reg(edge_map, cover)
+
+        # Steganalyzer term — push frozen detector toward "cover" on stego.
+        if self.steganalyzer is not None and self.lambda_stega > 0:
+            stego_01 = ((S_final + 1.0) * 0.5).clamp(0.0, 1.0)
+            logits   = self.steganalyzer(stego_01)
+            cover_t  = torch.zeros(stego_01.size(0),
+                                   dtype=torch.long, device=stego_01.device)
+            total = total + self.lambda_stega * F.cross_entropy(logits, cover_t)
 
         return total

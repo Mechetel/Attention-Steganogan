@@ -25,23 +25,23 @@ import numpy as np
 RUNS: List[Tuple[str, str]] = [
     # (path_to_roc_results.json, display_label)
     (
-        "steganalyzers/runs/xunet/xunet_1774554056/roc_results.json",
+        "steganalyzers/runs/xunet/xunet_1780657578/roc_results.json",
         "XuNet",
     ),
     (
-        "steganalyzers/runs/yenet/yenet_1774595756/roc_results.json",
+        "steganalyzers/runs/yenet/yenet_1780658225/roc_results.json",
         "YeNet",
     ),
     (
-        "steganalyzers/runs/yedroudjnet/yedroudjnet_1774618114/roc_results.json",
+        "steganalyzers/runs/yedroudjnet/yedroudjnet_1780659810/roc_results.json",
         "YedroudjNet",
     ),
     (
-        "steganalyzers/runs/srnet/srnet_1774639446/roc_results.json",
+        "steganalyzers/runs/srnet/srnet_1780658944/roc_results.json",
         "SRNet",
     ),
     (
-        "steganalyzers/runs/efficientnetsteg/efficientnetsteg_1774628820/roc_results.json",
+        "steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488/roc_results.json",
         "EfficientNetSteg",
     ),
 ]

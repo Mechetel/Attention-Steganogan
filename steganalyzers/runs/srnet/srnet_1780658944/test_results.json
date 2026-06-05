@@ -1,0 +1,15 @@
+{
+  "network": "srnet",
+  "checkpoint": "steganalyzers/runs/srnet/srnet_1780658944/epoch0030.pt",
+  "split": "test",
+  "num_samples": 400,
+  "metrics": {
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "auc_roc": 1.0,
+    "tpr_at_fpr10": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  }
+}

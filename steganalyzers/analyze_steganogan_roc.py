@@ -72,27 +72,27 @@ RUNS_DIR = os.path.join(_HERE, "runs")
 STEGANALYZERS = {
     "XuNet": {
         "network":    "XuNet",
-        "checkpoint": os.path.join(RUNS_DIR, "xunet/xunet_1774554056/best_epoch0022.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "xunet/xunet_1780657578/epoch0040.pt"),
         "params":     {},
     },
     "YeNet": {
         "network":    "YeNet",
-        "checkpoint": os.path.join(RUNS_DIR, "yenet/yenet_1774595756/best_epoch0030.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "yenet/yenet_1780658225/epoch0040.pt"),
         "params":     {"srm_trainable": False, "tlu_threshold": 3.0},
     },
     "YedroudjNet": {
         "network":    "YedroudjNet",
-        "checkpoint": os.path.join(RUNS_DIR, "yedroudjnet/yedroudjnet_1774618114/best_epoch0030.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "yedroudjnet/yedroudjnet_1780659810/epoch0041.pt"),
         "params":     {"abs_layer": True, "clamp_val": 3.0},
     },
     "SRNet": {
         "network":    "SRNet",
-        "checkpoint": os.path.join(RUNS_DIR, "srnet/srnet_1774639446/best_epoch0021.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "srnet/srnet_1780658944/epoch0030.pt"),
         "params":     {},
     },
     "EfficientNetSteg": {
         "network":    "EfficientNetSteg",
-        "checkpoint": os.path.join(RUNS_DIR, "efficientnetsteg/efficientnetsteg_1774628820/best_epoch0030.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "efficientnetsteg/efficientnetsteg_1780660488/epoch0041.pt"),
         "params":     {"freeze_backbone": False, "dropout": 0.4},
     },
 }

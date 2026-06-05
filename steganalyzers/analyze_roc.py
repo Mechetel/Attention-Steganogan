@@ -53,12 +53,17 @@ CONFIG = {
     # ── Hardware ──────────────────────────────────────────────────────────────
     "gpu":          False,
 
+    # ── Dataset ───────────────────────────────────────────────────────────────
+    # "alaska2"   → Cover/ + JMiPOD/JUNIWARD/UERD/  (*.jpg)
+    # "steganogan"→ cover/ + basic/dense/residual/  (*.png)
+    "dataset":    "steganogan",
+
     # ── Network ───────────────────────────────────────────────────────────────
     # "network":      "XuNet",
     # "network":      "YeNet",
     # "network":      "YedroudjNet",
-    "network":      "SRNet",
-    # "network":      "EfficientNetSteg",
+    # "network":      "SRNet",
+    "network":      "EfficientNetSteg",
 
     # Network hyper-params (must match checkpoint)
     "srm_trainable": False,
@@ -72,30 +77,35 @@ CONFIG = {
     # ── Checkpoint ────────────────────────────────────────────────────────────
     "checkpoint": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/srnet/"
-        # "xunet_1774554056/best_epoch0022.pt"
-        # "yenet_1774595756/best_epoch0030.pt"
-        # "yedroudjnet_1774618114/best_epoch0030.pt"
-        "srnet_1774639446/best_epoch0021.pt"
-        # "efficientnetsteg_1774628820/best_epoch0030.pt"
+        "Attention-Steganogan/steganalyzers/runs/efficientnetsteg/"
+        # "xunet_1780657578/epoch0040.pt"
+        # "yenet_1780658225/epoch0040.pt"
+        # "yedroudjnet_1780659810/epoch0041.pt"
+        # "srnet_1780658944/epoch0030.pt"
+        "efficientnetsteg_1780660488/epoch0041.pt"
     ),
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    "data_root":  "/Users/dmitryhoma/Projects/datasets/alaska2-image-steganalysis",
-    "stego_algs": ["JMiPOD", "JUNIWARD", "UERD"],
+    # ALASKA2 default: "/Users/dmitryhoma/Projects/datasets/alaska2-image-steganalysis"
+    "data_root":  "/Users/dmitryhoma/Projects/datasets/steganogan-dataset",
+    # ALASKA2: ["JMiPOD", "JUNIWARD", "UERD"]
+    # SteganoGAN: ["basic", "dense", "residual"]
+    "stego_algs": ["basic", "dense", "residual"],
     "crop_size":  512,
     "batch_size": 32,
     "num_workers": 4,
+    "max_cover":  500,
+    "max_stego":  500,
 
     # ── Output ────────────────────────────────────────────────────────────────
     "output_dir": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/srnet/"
-        # "xunet_1774554056"
-        # "yenet_1774595756"
-        # "yedroudjnet_1774618114"
-        "srnet_1774639446"
-        # "efficientnetsteg_1774628820"
+        "Attention-Steganogan/steganalyzers/runs/efficientnetsteg/"
+        # "xunet_1780657578"
+        # "yenet_1780658225"
+        # "yedroudjnet_1780659810"
+        # "srnet_1780658944"
+        "efficientnetsteg_1780660488"
     ),
 }
 
@@ -124,6 +134,44 @@ class FullAlaska2Dataset(Dataset):
         per_alg = max_stego // len(stego_algs)
         for alg in stego_algs:
             alg_paths = sorted((root / alg).glob("*.jpg"))[:per_alg]
+            for p in alg_paths:
+                samples.append((p, 1))
+
+        self.samples   = samples
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int):
+        path, label = self.samples[idx]
+        img = Image.open(path).convert("RGB")
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, label
+
+
+class FullSteganoganDataset(Dataset):
+    """Labelled images from cover + basic/dense/residual dirs — no split."""
+
+    def __init__(
+        self,
+        root:        str,
+        stego_algs:  Sequence[str],
+        transform,
+        max_cover:   int = 500,
+        max_stego:   int = 500,
+    ) -> None:
+        root = Path(root).expanduser()
+        samples: List[Tuple[Path, int]] = []
+
+        cover_paths = sorted((root / "cover").glob("*.png"))[:max_cover]
+        for p in cover_paths:
+            samples.append((p, 0))
+
+        per_alg = max_stego // len(stego_algs)
+        for alg in stego_algs:
+            alg_paths = sorted((root / alg).glob("*.png"))[:per_alg]
             for p in alg_paths:
                 samples.append((p, 1))
 
@@ -264,7 +312,7 @@ def compute_metrics(probs: np.ndarray, labels: np.ndarray, fpr_target=0.1):
 # ── Plot ─────────────────────────────────────────────────────────────────────
 
 def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str,
-             network_name: str = "") -> None:
+             network_name: str = "", dataset_name: str = "ALASKA2") -> None:
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -279,7 +327,7 @@ def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str,
     ax.axvline(x=0.1, color="#F44336", lw=1, linestyle=":", label="FPR = 0.10")
     ax.set_xlabel("False Positive Rate", fontsize=13)
     ax.set_ylabel("True Positive Rate", fontsize=13)
-    ax.set_title(f"ROC Curve — {network_name} on ALASKA2 (full dataset)", fontsize=14)
+    ax.set_title(f"ROC Curve — {network_name} on {dataset_name} (full dataset)", fontsize=14)
     ax.legend(fontsize=11)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.02)
@@ -293,9 +341,13 @@ def plot_roc(fpr: np.ndarray, tpr: np.ndarray, auc: float, out_path: str,
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    network_name = CONFIG["network"]
+    network_name   = CONFIG["network"]
+    dataset_choice = CONFIG.get("dataset", "alaska2").lower()
+    dataset_label  = {"alaska2": "ALASKA2", "steganogan": "SteganoGAN"}.get(
+        dataset_choice, dataset_choice
+    )
     print("=" * 60)
-    print(f"{network_name} — Full ALASKA2 ROC / AUC Analysis")
+    print(f"{network_name} — Full {dataset_label} ROC / AUC Analysis")
     print("=" * 60)
 
     # Device
@@ -312,12 +364,19 @@ def main() -> None:
         transforms.CenterCrop(CONFIG["crop_size"]),
         transforms.ToTensor(),
     ])
-    dataset = FullAlaska2Dataset(
+    if dataset_choice == "steganogan":
+        dataset_cls = FullSteganoganDataset
+    elif dataset_choice == "alaska2":
+        dataset_cls = FullAlaska2Dataset
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_choice!r}")
+
+    dataset = dataset_cls(
         root=CONFIG["data_root"],
         stego_algs=CONFIG["stego_algs"],
         transform=transform,
-        max_cover=500,
-        max_stego=500,
+        max_cover=CONFIG.get("max_cover", 500),
+        max_stego=CONFIG.get("max_stego", 500),
     )
     n_cover = sum(1 for _, l in dataset.samples if l == 0)
     n_stego = sum(1 for _, l in dataset.samples if l == 1)
@@ -348,7 +407,7 @@ def main() -> None:
     metrics, fpr_arr, tpr_arr = compute_metrics(probs, labels)
 
     print(f"\n{'=' * 60}")
-    print(f"Results — full ALASKA2 dataset")
+    print(f"Results — full {dataset_label} dataset")
     print(f"  Network : {CONFIG['network']}")
     print(f"  Samples : {len(dataset)}")
     print("-" * 60)
@@ -367,6 +426,7 @@ def main() -> None:
 
     results = {
         "network":    CONFIG["network"],
+        "dataset":    dataset_choice,
         "checkpoint": ckpt_path,
         "num_samples": len(dataset),
         "num_cover":   n_cover,
@@ -384,7 +444,8 @@ def main() -> None:
 
     plot_roc(fpr_arr, tpr_arr, metrics["auc_roc"],
              out_path=os.path.join(out_dir, "roc_curve.png"),
-             network_name=network_name)
+             network_name=network_name,
+             dataset_name=dataset_label)
 
 
 if __name__ == "__main__":

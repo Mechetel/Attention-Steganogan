@@ -67,6 +67,8 @@ class Trainer:
         verbose:            bool = False,
         critic:             Optional[nn.Module] = None,
         critic_train_steps: int = 5,
+        steganalyzer:       Optional[nn.Module] = None,
+        lambda_stega:       float = 1.0,
     ) -> None:
         self.encoder            = encoder
         self.decoder            = decoder
@@ -80,6 +82,15 @@ class Trainer:
             1 if isinstance(critic, MultiScaleEdgeAwareCritic)
             else critic_train_steps
         )
+
+        # Optional frozen "second critic" — a pretrained steganalyzer used as
+        # an adversarial signal in the encoder loss only (no gradient steps).
+        self.steganalyzer = steganalyzer
+        self.lambda_stega = lambda_stega
+        if steganalyzer is not None:
+            steganalyzer.eval()
+            for p in steganalyzer.parameters():
+                p.requires_grad_(False)
 
         self.optimizer:        Optional[torch.optim.Optimizer] = None
         self.critic_optimizer: Optional[torch.optim.Optimizer] = None
@@ -101,6 +112,8 @@ class Trainer:
             critic=critic,
             lambda_edge=getattr(encoder, "lambda_edge", 0.01),
             lambda_vgg=getattr(encoder, "lambda_vgg", 0.1),
+            steganalyzer=steganalyzer,
+            lambda_stega=lambda_stega,
         ).to(device)
 
         self._critic_uses_spectral_norm = isinstance(critic, MultiScaleEdgeAwareCritic)
@@ -116,6 +129,46 @@ class Trainer:
     @property
     def has_critic(self) -> bool:
         return self.critic is not None
+
+    @property
+    def has_steganalyzer(self) -> bool:
+        return self.steganalyzer is not None
+
+    # ── Adversarial-steganalyzer attachment ───────────────────────────────────
+
+    def attach_steganalyzer(
+        self,
+        steganalyzer: nn.Module,
+        lambda_stega: float = 1.0,
+    ) -> None:
+        """
+        Attach (or replace) the frozen steganalyzer used by the encoder loss.
+
+        Useful when resuming from a pickled SteganoGAN that did not carry one
+        — load the checkpoint, then call ``trainer.attach_steganalyzer(...)``.
+
+        The steganalyzer is set to eval mode, all of its parameters are
+        frozen, it is moved to the trainer's device, and the edge-aware
+        iterative loss is rebuilt so the new module is wired in.
+        """
+        steganalyzer.eval()
+        for p in steganalyzer.parameters():
+            p.requires_grad_(False)
+        steganalyzer = steganalyzer.to(self.device)
+
+        self.steganalyzer = steganalyzer
+        self.lambda_stega = lambda_stega
+
+        self._edge_iter_loss = EdgeAwareIterativeLoss(
+            decoder=self.decoder,
+            gamma=getattr(self.encoder, "gamma", 0.8),
+            alpha=getattr(self.encoder, "alpha", 100.0),
+            critic=self.critic,
+            lambda_edge=getattr(self.encoder, "lambda_edge", 0.01),
+            lambda_vgg=getattr(self.encoder, "lambda_vgg", 0.1),
+            steganalyzer=steganalyzer,
+            lambda_stega=lambda_stega,
+        ).to(self.device)
 
     # ── Optimiser factories ───────────────────────────────────────────────────
 
@@ -312,10 +365,17 @@ class Trainer:
 
     def __getstate__(self):
         """Exclude GradScaler instances — they are PyTorch-version-specific and
-        are never needed for inference.  They are re-created in __setstate__."""
+        are never needed for inference.  They are re-created in __setstate__.
+
+        Also drop any attached steganalyzer: it is loaded from a separate
+        checkpoint at retrain time, never baked into the SteganoGAN file."""
         state = self.__dict__.copy()
         state.pop("_scaler", None)
         state.pop("_critic_scaler", None)
+        state["steganalyzer"] = None
+        # _edge_iter_loss holds a reference to the steganalyzer too — re-build
+        # it on load so the saved file stays portable.
+        state.pop("_edge_iter_loss", None)
         return state
 
     def __setstate__(self, state):
@@ -336,6 +396,20 @@ class Trainer:
         else:
             self._scaler        = None
             self._critic_scaler = None
+
+        # Re-build the edge-aware loss without any steganalyzer attached.
+        self.steganalyzer = None
+        self.lambda_stega = getattr(self, "lambda_stega", 1.0)
+        self._edge_iter_loss = EdgeAwareIterativeLoss(
+            decoder=self.decoder,
+            gamma=getattr(self.encoder, "gamma", 0.8),
+            alpha=getattr(self.encoder, "alpha", 100.0),
+            critic=self.critic,
+            lambda_edge=getattr(self.encoder, "lambda_edge", 0.01),
+            lambda_vgg=getattr(self.encoder, "lambda_vgg", 0.1),
+            steganalyzer=None,
+            lambda_stega=self.lambda_stega,
+        ).to(self.device)
 
     # ── Backward-compat aliases ───────────────────────────────────────────────
 

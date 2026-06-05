@@ -35,7 +35,7 @@ _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
-from steganalyzers.data       import Alaska2DataLoaderFactory
+from steganalyzers.data       import Alaska2DataLoaderFactory, SteganoganDataLoaderFactory
 from steganalyzers.training   import SteganalysisMetrics
 from steganalyzers.utils      import Checkpoint
 
@@ -49,10 +49,11 @@ except ImportError:
 
 CONFIG: Dict[str, Any] = {
     # ── Hardware ──────────────────────────────────────────────────────────────
-    "gpu":          True,
+    "gpu":          False,
 
     # ── Network ───────────────────────────────────────────────────────────────
-    "network":      "srnet",    # must match the checkpoint
+    # Choices: xunet+ | yenet+ | srnet+ | yedroudjnet+ | zhunet- | siastegnet- | efficientnetsteg+
+    "network":      "efficientnetsteg",    # must match the checkpoint
 
     # Network-specific hyper-parameters (only needed if building from scratch)
     "srm_trainable": True,
@@ -65,22 +66,27 @@ CONFIG: Dict[str, Any] = {
     # ── Checkpoint ────────────────────────────────────────────────────────────
     # Path to a .pt checkpoint file produced by train.py.
     # Set to None to evaluate a randomly initialised model (sanity check).
-    "checkpoint":   None,       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
+    "checkpoint":   "steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488/epoch0041.pt",       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
 
     # ── Evaluation split ──────────────────────────────────────────────────────
     "split":        "test",     # "test" | "val"
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    "data_root":    os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
+    # Dataset selector: "alaska2" | "steganogan"
+    "dataset":      "steganogan",
+    # "data_root":    os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
+    "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset"),
     "crop_size":    512,
     "batch_size":   32,
-    "num_workers":  4,
-    "stego_algs":   ["JMiPOD", "JUNIWARD", "UERD"],
+    "num_workers":  0,
+    # ALASKA2 algs: ["JMiPOD", "JUNIWARD", "UERD"]
+    # SteganoGAN algs: ["basic", "dense", "residual"]
+    "stego_algs":   ["basic", "dense", "residual"],
     "val_frac":     0.1,
     "test_frac":    0.1,
 
     # ── Output ────────────────────────────────────────────────────────────────
-    "output_dir":   None,       # if set, write test_results.json here
+    "output_dir":   'steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488',       # if set, write test_results.json here
     "verbose":      True,
 }
 
@@ -113,7 +119,6 @@ def _build_network(cfg: Dict[str, Any]) -> torch.nn.Module:
                           dropout=cfg.get("dropout", 0.5))
     elif choice == "efficientnetsteg":
         return EfficientNetSteg(**common,
-                                srm_trainable=cfg.get("srm_trainable", True),
                                 freeze_backbone=cfg.get("freeze_backbone", False),
                                 dropout=cfg.get("dropout", 0.4))
     else:
@@ -188,10 +193,17 @@ def main() -> None:
     print(f"Device: {device}\n")
 
     # ── Data ──────────────────────────────────────────────────────────────────
-    split = CONFIG.get("split", "test")
+    split          = CONFIG.get("split", "test")
+    dataset_choice = CONFIG.get("dataset", "alaska2").lower()
+    if dataset_choice == "steganogan":
+        factory = SteganoganDataLoaderFactory
+    elif dataset_choice == "alaska2":
+        factory = Alaska2DataLoaderFactory
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_choice!r}")
 
     if split == "test":
-        loader = Alaska2DataLoaderFactory.create_test(
+        loader = factory.create_test(
             root=CONFIG["data_root"],
             batch_size=CONFIG["batch_size"],
             num_workers=CONFIG["num_workers"],
@@ -202,7 +214,7 @@ def main() -> None:
             pin_memory=(device.type == "cuda"),
         )
     else:
-        _, loader = Alaska2DataLoaderFactory.create(
+        _, loader = factory.create(
             root=CONFIG["data_root"],
             batch_size=CONFIG["batch_size"],
             num_workers=CONFIG["num_workers"],
