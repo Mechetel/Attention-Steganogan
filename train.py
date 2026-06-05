@@ -59,6 +59,13 @@ from steganogan.models.decoders.decoders import EdgeAwareDenseDecoder
 from steganogan.models.critics.critics import MultiScaleEdgeAwareCritic
 from steganogan.data import DataLoaderFactory
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+
+from steganalyzers.models import (
+    XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg,
+)
+
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -107,6 +114,28 @@ CONFIG: Dict[str, Any] = {
     "edge_epsilon":  0.05,          # edge mask floor (prevents dead gradients)
     "lambda_edge":   0.01,          # edge regularisation weight
     "lambda_vgg":    0.1,           # VGG perceptual loss weight
+
+    # ── Second critic: frozen steganalyzer in the encoder loss ──────────────
+    # Off by default — flip `enabled` to True to add the adversarial term.
+    "steganalyzer": {
+        "enabled":          False,
+        # "xunet" | "yenet" | "srnet" | "yedroudjnet"
+        # | "zhunet" | "siastegnet" | "efficientnetsteg"
+        "network":          "efficientnetsteg",
+        # Path to the .pt checkpoint produced by steganalyzers/train.py
+        # (bundle with key "model_state"). Must match `network`.
+        "checkpoint":       "steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488/epoch0041.pt",
+        # Weight of the steganalyzer cross-entropy term in the encoder loss.
+        "lambda":           1.0,
+        # Network-build hyper-parameters (only the subset used by `network`).
+        "srm_trainable":    False,
+        "tlu_threshold":    3.0,
+        "abs_layer":        True,
+        "clamp_val":        3.0,
+        "ca_reduction":     8,
+        "dropout":          0.4,
+        "freeze_backbone":  False,
+    },
 }
 
 # ── Encoder / decoder / critic registries ─────────────────────────────────────
@@ -167,6 +196,53 @@ def _build_critic(cfg: Dict[str, Any]) -> type | None:
         raise ValueError(f"Unknown critic: {choice!r}")
 
 
+def _build_steganalyzer(cfg: Dict[str, Any]) -> torch.nn.Module:
+    """Build a steganalyzer instance from the `steganalyzer` config block."""
+    choice = cfg["network"].lower()
+    common = dict(in_channels=3, num_classes=2)
+
+    if choice == "xunet":
+        return XuNet(**common)
+    elif choice == "yenet":
+        return YeNet(**common,
+                     srm_trainable=cfg.get("srm_trainable", False),
+                     tlu_threshold=cfg.get("tlu_threshold", 3.0))
+    elif choice == "srnet":
+        return SRNet(**common)
+    elif choice == "yedroudjnet":
+        return YedroudjNet(**common,
+                           abs_layer=cfg.get("abs_layer", True),
+                           clamp_val=cfg.get("clamp_val", 3.0))
+    elif choice == "zhunet":
+        return ZhuNet(**common,
+                      srm_trainable=cfg.get("srm_trainable", False))
+    elif choice == "siastegnet":
+        return SIAStegNet(**common,
+                          srm_trainable=cfg.get("srm_trainable", False))
+    elif choice == "efficientnetsteg":
+        return EfficientNetSteg(**common,
+                                freeze_backbone=cfg.get("freeze_backbone", False),
+                                dropout=cfg.get("dropout", 0.4))
+    else:
+        raise ValueError(f"Unknown steganalyzer network: {choice!r}")
+
+
+def _load_steganalyzer(cfg: Dict[str, Any], device: torch.device) -> torch.nn.Module:
+    """Build a steganalyzer, load its checkpoint, freeze, and move to device."""
+    model     = _build_steganalyzer(cfg)
+    ckpt_path = cfg["checkpoint"]
+    if not os.path.isabs(ckpt_path):
+        ckpt_path = os.path.join(_HERE, ckpt_path)
+    bundle    = torch.load(ckpt_path, map_location=device, weights_only=False)
+    model.load_state_dict(bundle["model_state"])
+    model.eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
+    epoch = bundle.get("epoch", "?")
+    print(f"  Steganalyzer ({cfg['network']}) ← {ckpt_path}  (epoch {epoch})")
+    return model.to(device)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -213,6 +289,17 @@ def main() -> None:
         log_dir    = log_dir,
     )
     print(model)
+
+    # ── Optional second critic: frozen steganalyzer ──────────────────────
+    stega_cfg = CONFIG.get("steganalyzer", {})
+    if stega_cfg.get("enabled", False):
+        steganalyzer = _load_steganalyzer(stega_cfg, model.device)
+        model._trainer.attach_steganalyzer(
+            steganalyzer,
+            lambda_stega=stega_cfg.get("lambda", 1.0),
+        )
+        print(f"  λ_stega   : {stega_cfg.get('lambda', 1.0)}")
+
     print(f"\nLogs → {log_dir}\n")
 
     # ── Train ─────────────────────────────────────────────────────────────

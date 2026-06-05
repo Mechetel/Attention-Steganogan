@@ -86,7 +86,7 @@ CONFIG: Dict[str, Any] = {
     # ── Second critic: a frozen steganalyzer in the encoder loss ─────────────
     # Set `enabled` False (default) to run plain continuation training.
     "steganalyzer": {
-        "enabled":          False,
+        "enabled":          True,
 
         # Which network to instantiate. Choices:
         #   "xunet" | "yenet" | "srnet" | "yedroudjnet"
