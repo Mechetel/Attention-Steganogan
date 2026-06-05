@@ -50,7 +50,7 @@ _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
-from steganalyzers.data       import DataLoaderFactory
+from steganalyzers.data       import Alaska2DataLoaderFactory, SteganoganDataLoaderFactory
 from steganalyzers.training   import (
     Trainer, MetricsLogger, CheckpointSaver, LRMonitor,
 )
@@ -97,9 +97,14 @@ CONFIG: Dict[str, Any] = {
     "lr_patience":      5,          # plateau patience (ReduceLROnPlateau)
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    "data_root":        os.path.expanduser("/workspace/alaska2-image-steganalysis"),
+    # Dataset selector: "alaska2" | "steganogan"
+    "dataset":          "steganogan",
+    # "data_root":        os.path.expanduser("/workspace/alaska2-image-steganalysis"),
+    "data_root":        os.path.expanduser("/workspace/steganogan-dataset"),
     "crop_size":        512,
-    "stego_algs":       ["JMiPOD", "JUNIWARD", "UERD"],  # algorithms to include
+    # ALASKA2 algs: ["JMiPOD", "JUNIWARD", "UERD"]
+    # SteganoGAN algs: ["basic", "dense", "residual"]
+    "stego_algs":       ["basic", "dense", "residual"],
     "val_frac":         0.1,
     "test_frac":        0.1,
     "balanced":         True,       # balance cover/stego per batch
@@ -202,7 +207,15 @@ def main() -> None:
     print(f"Device: {device}\n")
 
     # ── Data ──────────────────────────────────────────────────────────────────
-    train_loader, val_loader = DataLoaderFactory.create(
+    dataset_choice = CONFIG.get("dataset", "alaska2").lower()
+    if dataset_choice == "steganogan":
+        factory = SteganoganDataLoaderFactory
+    elif dataset_choice == "alaska2":
+        factory = Alaska2DataLoaderFactory
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_choice!r}")
+
+    train_loader, val_loader = factory.create(
         root=CONFIG["data_root"],
         batch_size=CONFIG["batch_size"],
         num_workers=CONFIG["num_workers"],

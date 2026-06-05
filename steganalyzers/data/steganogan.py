@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-ALASKA2 dataset loader.
+SteganoGAN dataset loader for steganalysis.
 
 Dataset structure
 -----------------
-    alaska2-image-steganalysis/
-        Cover/       *.jpg   — unmodified JPEG images, 512×512 (label 0)
-        JMiPOD/      *.jpg   — JMiPOD steganography (label 1)
-        JUNIWARD/    *.jpg   — J-UNIWARD steganography (label 1)
-        UERD/        *.jpg   — UERD steganography (label 1)
-        Test/        *.jpg   — unlabeled Kaggle competition images (not used)
+    steganogan-dataset/
+        cover/      *.png   — unmodified cover images, 512×512 (label 0)
+        basic/      *.png   — BasicEncoder stego images (label 1)
+        dense/      *.png   — DenseEncoder stego images (label 1)
+        residual/   *.png   — ResidualEncoder stego images (label 1)
 
-Each split (train / val / test) is defined by a list of filenames or by
-a fixed random seed + fraction.
+Filenames are paired across folders (0000.png in cover/ matches 0000.png in
+each stego folder), which lets us split by filename and pull all variants
+together for that split.
 
 Usage
 -----
-    ds = Alaska2Dataset(root="~/datasets/alaska2", split="train")
+    ds = SteganoganDataset(root="~/datasets/steganogan-dataset", split="train")
     img, label = ds[0]
 """
 
-import os
 import random
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple
@@ -28,27 +27,26 @@ from typing import Callable, List, Optional, Sequence, Tuple
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
 
 
-# ── Supported stego algorithms ─────────────────────────────────────────────────
+# ── Supported stego variants ──────────────────────────────────────────────────
 
-ALASKA2_STEGO_DIRS: Tuple[str, ...] = ("JMiPOD", "JUNIWARD", "UERD")
-ALASKA2_COVER_DIR:  str             = "Cover"
+STEGO_DIRS: Tuple[str, ...] = ("basic", "dense", "residual")
+COVER_DIR:  str             = "cover"
 
 
-# ── Dataset ────────────────────────────────────────────────────────────────────
+# ── Dataset ───────────────────────────────────────────────────────────────────
 
-class Alaska2Dataset(Dataset):
+class SteganoganDataset(Dataset):
     """
-    ALASKA2 binary steganalysis dataset (cover vs stego).
+    SteganoGAN binary steganalysis dataset (cover vs stego).
 
     Parameters
     ----------
-    root        : root directory containing Cover/, JMiPOD/, JUNIWARD/, UERD/
+    root        : root directory containing cover/, basic/, dense/, residual/
     split       : "train" | "val" | "test"
     transform   : torchvision transform applied to every image
-    stego_algs  : which stego algorithms to include (default: all three)
+    stego_algs  : which stego variants to include (default: all three)
     val_frac    : fraction of cover+stego pairs reserved for validation
     test_frac   : fraction reserved for testing
     seed        : RNG seed for reproducible splits
@@ -63,7 +61,7 @@ class Alaska2Dataset(Dataset):
         root:        str,
         split:       str                    = "train",
         transform:   Optional[Callable]     = None,
-        stego_algs:  Sequence[str]          = ALASKA2_STEGO_DIRS,
+        stego_algs:  Sequence[str]          = STEGO_DIRS,
         val_frac:    float                  = 0.1,
         test_frac:   float                  = 0.1,
         seed:        int                    = 42,
@@ -74,15 +72,14 @@ class Alaska2Dataset(Dataset):
         self.split     = split
         self.transform = transform
 
-        # Collect all cover filenames (basenames only)
-        cover_dir  = self.root / ALASKA2_COVER_DIR
-        all_covers = sorted(cover_dir.glob("*.jpg"))
+        cover_dir  = self.root / COVER_DIR
+        all_covers = sorted(cover_dir.glob("*.png"))
         filenames  = [p.name for p in all_covers]
 
         if not filenames:
             raise FileNotFoundError(
-                f"No JPEG images found in {cover_dir}. "
-                "Check that ALASKA2 is unpacked correctly."
+                f"No PNG images found in {cover_dir}. "
+                "Check that the SteganoGAN dataset is unpacked correctly."
             )
 
         # Reproducible split
@@ -106,12 +103,10 @@ class Alaska2Dataset(Dataset):
         # Build sample list: (path, label)
         samples: List[Tuple[Path, int]] = []
         for fname in split_files:
-            # Cover
             cover_path = cover_dir / fname
             if cover_path.exists():
                 samples.append((cover_path, self.LABEL_COVER))
 
-            # Stego variants
             for alg in stego_algs:
                 stego_path = self.root / alg / fname
                 if stego_path.exists():
@@ -123,7 +118,7 @@ class Alaska2Dataset(Dataset):
 
         self.samples = samples
 
-    # ── Dataset interface ──────────────────────────────────────────────────────
+    # ── Dataset interface ─────────────────────────────────────────────────────
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -135,7 +130,7 @@ class Alaska2Dataset(Dataset):
             img = self.transform(img)
         return img, label
 
-    # ── Helpers ────────────────────────────────────────────────────────────────
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     @property
     def num_cover(self) -> int:
@@ -147,7 +142,7 @@ class Alaska2Dataset(Dataset):
 
     def __repr__(self) -> str:
         return (
-            f"Alaska2Dataset(split={self.split!r}, "
+            f"SteganoganDataset(split={self.split!r}, "
             f"cover={self.num_cover}, stego={self.num_stego}, "
             f"total={len(self)})"
         )

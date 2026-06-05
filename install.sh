@@ -84,3 +84,6 @@ jpg_to_png train/_
 
 curl -L -o /workspace/alaska2.zip https://www.kaggle.com/api/v1/datasets/download/mechetel/alaska2
 unzip alaska2.zip
+
+curl -L -o /workspace/steganogan-dataset.zip https://www.kaggle.com/api/v1/datasets/download/mechetel/steganogan-dataset
+unzip steganogan-dataset.zip

@@ -35,7 +35,7 @@ _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
-from steganalyzers.data       import DataLoaderFactory
+from steganalyzers.data       import Alaska2DataLoaderFactory
 from steganalyzers.training   import SteganalysisMetrics
 from steganalyzers.utils      import Checkpoint
 
@@ -191,7 +191,7 @@ def main() -> None:
     split = CONFIG.get("split", "test")
 
     if split == "test":
-        loader = DataLoaderFactory.create_test(
+        loader = Alaska2DataLoaderFactory.create_test(
             root=CONFIG["data_root"],
             batch_size=CONFIG["batch_size"],
             num_workers=CONFIG["num_workers"],
@@ -202,7 +202,7 @@ def main() -> None:
             pin_memory=(device.type == "cuda"),
         )
     else:
-        _, loader = DataLoaderFactory.create(
+        _, loader = Alaska2DataLoaderFactory.create(
             root=CONFIG["data_root"],
             batch_size=CONFIG["batch_size"],
             num_workers=CONFIG["num_workers"],
