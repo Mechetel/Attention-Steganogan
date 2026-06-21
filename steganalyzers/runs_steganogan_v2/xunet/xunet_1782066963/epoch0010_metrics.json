@@ -1,0 +1,47 @@
+{
+  "epoch": 10,
+  "metrics": {
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "auc_roc": 1.0,
+    "tpr_at_fpr10": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "val_loss": 0.0008508266764692962
+  },
+  "config": {
+    "gpu": true,
+    "network": "xunet",
+    "srm_trainable": false,
+    "tlu_threshold": 3.0,
+    "abs_layer": true,
+    "clamp_val": 3.0,
+    "ca_reduction": 8,
+    "dropout": 0.5,
+    "freeze_backbone": false,
+    "epochs": 100,
+    "batch_size": 32,
+    "num_workers": 4,
+    "lr": 0.01,
+    "momentum": 0.9,
+    "nesterov": true,
+    "weight_decay": 1e-05,
+    "scheduler": "plateau",
+    "lr_min": 1e-06,
+    "lr_patience": 5,
+    "dataset": "steganogan",
+    "data_root": "/workspace/steganogan-dataset-v2",
+    "crop_size": 512,
+    "stego_algs": [
+      "basic",
+      "dense",
+      "residual"
+    ],
+    "val_frac": 0.1,
+    "test_frac": 0.1,
+    "balanced": true,
+    "max_samples": null,
+    "monitor": "auc_roc"
+  }
+}

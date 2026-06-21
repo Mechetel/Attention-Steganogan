@@ -66,7 +66,7 @@ CONFIG: Dict[str, Any] = {
     # ── Checkpoint ────────────────────────────────────────────────────────────
     # Path to a .pt checkpoint file produced by train.py.
     # Set to None to evaluate a randomly initialised model (sanity check).
-    "checkpoint":   "steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488/epoch0041.pt",       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
+    "checkpoint":   "steganalyzers/runs_steganogan_v2/efficientnetsteg/efficientnetsteg_1782068192/epoch0009.pt",       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
 
     # ── Evaluation split ──────────────────────────────────────────────────────
     "split":        "test",     # "test" | "val"
@@ -75,7 +75,7 @@ CONFIG: Dict[str, Any] = {
     # Dataset selector: "alaska2" | "steganogan"
     "dataset":      "steganogan",
     # "data_root":    os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
-    "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset"),
+    "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset-v2"),
     "crop_size":    512,
     "batch_size":   32,
     "num_workers":  0,
@@ -86,7 +86,7 @@ CONFIG: Dict[str, Any] = {
     "test_frac":    0.1,
 
     # ── Output ────────────────────────────────────────────────────────────────
-    "output_dir":   'steganalyzers/runs/efficientnetsteg/efficientnetsteg_1780660488',       # if set, write test_results.json here
+    "output_dir":   'steganalyzers/runs_steganogan_v2/efficientnetsteg/efficientnetsteg_1782068192',       # if set, write test_results.json here
     "verbose":      True,
 }
 

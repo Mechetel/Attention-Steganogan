@@ -77,17 +77,17 @@ CONFIG = {
     # ── Checkpoint ────────────────────────────────────────────────────────────
     "checkpoint": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/efficientnetsteg/"
-        # "xunet_1780657578/epoch0040.pt"
-        # "yenet_1780658225/epoch0040.pt"
-        # "yedroudjnet_1780659810/epoch0041.pt"
-        # "srnet_1780658944/epoch0030.pt"
-        "efficientnetsteg_1780660488/epoch0041.pt"
+        "Attention-Steganogan/steganalyzers/runs_steganogan_v2/efficientnetsteg/"
+        # "xunet_1782066963/epoch0010.pt"
+        # "yenet_1782067213/epoch0010.pt"
+        # "yedroudjnet_1782067933/epoch0010.pt"
+        # "srnet_1782067443/epoch0010.pt"
+        "efficientnetsteg_1782068192/epoch0009.pt"
     ),
 
     # ── Data ─────────────────────────────────────────────────────────────────
     # ALASKA2 default: "/Users/dmitryhoma/Projects/datasets/alaska2-image-steganalysis"
-    "data_root":  "/Users/dmitryhoma/Projects/datasets/steganogan-dataset",
+    "data_root":  "/Users/dmitryhoma/Projects/datasets/steganogan-dataset-v2",
     # ALASKA2: ["JMiPOD", "JUNIWARD", "UERD"]
     # SteganoGAN: ["basic", "dense", "residual"]
     "stego_algs": ["basic", "dense", "residual"],
@@ -100,12 +100,12 @@ CONFIG = {
     # ── Output ────────────────────────────────────────────────────────────────
     "output_dir": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs/efficientnetsteg/"
-        # "xunet_1780657578"
-        # "yenet_1780658225"
-        # "yedroudjnet_1780659810"
-        # "srnet_1780658944"
-        "efficientnetsteg_1780660488"
+        "Attention-Steganogan/steganalyzers/runs_steganogan_v2/efficientnetsteg/"
+        # "xunet_1782066963"
+        # "yenet_1782067213"
+        # "yedroudjnet_1782067933"
+        # "srnet_1782067443"
+        "efficientnetsteg_1782068192"
     ),
 }
 
