@@ -50,7 +50,11 @@ _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
-from steganalyzers.data       import Alaska2DataLoaderFactory, SteganoganDataLoaderFactory
+from steganalyzers.data       import (
+    Alaska2DataLoaderFactory,
+    SteganoganDataLoaderFactory,
+    SteganoganV3DataLoaderFactory,
+)
 from steganalyzers.training   import (
     Trainer, MetricsLogger, CheckpointSaver, LRMonitor,
 )
@@ -97,10 +101,12 @@ CONFIG: Dict[str, Any] = {
     "lr_patience":      5,          # plateau patience (ReduceLROnPlateau)
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    # Dataset selector: "alaska2" | "steganogan"
-    "dataset":          "steganogan",
+    # Dataset selector: "alaska2" | "steganogan" | "steganogan_v3"
+    "dataset":          "steganogan_v3",
     # "data_root":        os.path.expanduser("/workspace/alaska2-image-steganalysis"),
-    "data_root":        os.path.expanduser("/workspace/steganogan-dataset"),
+    # "data_root":        os.path.expanduser("/workspace/steganogan-dataset"),
+    # v3: random per-image payload + shuffled architectures, splits via manifest.
+    "data_root":        os.path.expanduser("/workspace/steganogan-dataset-v3"),
     "crop_size":        512,
     # ALASKA2 algs: ["JMiPOD", "JUNIWARD", "UERD"]
     # SteganoGAN algs: ["basic", "dense", "residual"]
@@ -208,7 +214,9 @@ def main() -> None:
 
     # ── Data ──────────────────────────────────────────────────────────────────
     dataset_choice = CONFIG.get("dataset", "alaska2").lower()
-    if dataset_choice == "steganogan":
+    if dataset_choice == "steganogan_v3":
+        factory = SteganoganV3DataLoaderFactory
+    elif dataset_choice == "steganogan":
         factory = SteganoganDataLoaderFactory
     elif dataset_choice == "alaska2":
         factory = Alaska2DataLoaderFactory

@@ -7,6 +7,12 @@ from .steganogan            import (
     COVER_DIR  as STEGANOGAN_COVER_DIR,
 )
 from .steganogan_dataloader import SteganoganDataLoaderFactory
+from .steganogan_v3            import (
+    SteganoganV3Dataset,
+    STEGO_DIRS as STEGANOGAN_V3_STEGO_DIRS,
+    COVER_DIR  as STEGANOGAN_V3_COVER_DIR,
+)
+from .steganogan_v3_dataloader import SteganoganV3DataLoaderFactory
 
 __all__ = [
     "Alaska2Dataset",
@@ -17,4 +23,8 @@ __all__ = [
     "STEGANOGAN_STEGO_DIRS",
     "STEGANOGAN_COVER_DIR",
     "SteganoganDataLoaderFactory",
+    "SteganoganV3Dataset",
+    "STEGANOGAN_V3_STEGO_DIRS",
+    "STEGANOGAN_V3_COVER_DIR",
+    "SteganoganV3DataLoaderFactory",
 ]

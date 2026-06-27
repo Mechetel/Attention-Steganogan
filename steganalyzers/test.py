@@ -35,7 +35,11 @@ _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
 from steganalyzers.models     import XuNet, YeNet, SRNet, YedroudjNet, ZhuNet, SIAStegNet, EfficientNetSteg
-from steganalyzers.data       import Alaska2DataLoaderFactory, SteganoganDataLoaderFactory
+from steganalyzers.data       import (
+    Alaska2DataLoaderFactory,
+    SteganoganDataLoaderFactory,
+    SteganoganV3DataLoaderFactory,
+)
 from steganalyzers.training   import SteganalysisMetrics
 from steganalyzers.utils      import Checkpoint
 
@@ -72,10 +76,11 @@ CONFIG: Dict[str, Any] = {
     "split":        "test",     # "test" | "val"
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    # Dataset selector: "alaska2" | "steganogan"
-    "dataset":      "steganogan",
+    # Dataset selector: "alaska2" | "steganogan" | "steganogan_v3"
+    "dataset":      "steganogan_v3",
     # "data_root":    os.path.expanduser("~/Projects/datasets/alaska2-image-steganalysis"),
-    "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset-v2"),
+    # "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset-v2"),
+    "data_root":    os.path.expanduser("~/Projects/datasets/steganogan-dataset-v3"),
     "crop_size":    512,
     "batch_size":   32,
     "num_workers":  0,
@@ -195,7 +200,9 @@ def main() -> None:
     # ── Data ──────────────────────────────────────────────────────────────────
     split          = CONFIG.get("split", "test")
     dataset_choice = CONFIG.get("dataset", "alaska2").lower()
-    if dataset_choice == "steganogan":
+    if dataset_choice == "steganogan_v3":
+        factory = SteganoganV3DataLoaderFactory
+    elif dataset_choice == "steganogan":
         factory = SteganoganDataLoaderFactory
     elif dataset_choice == "alaska2":
         factory = Alaska2DataLoaderFactory
