@@ -1,0 +1,15 @@
+{
+  "network": "yenet",
+  "checkpoint": "steganalyzers/runs_steganogan_v3/yenet/yenet_1782569837/epoch0010.pt",
+  "split": "test",
+  "num_samples": 900,
+  "metrics": {
+    "accuracy": 0.9966666666666667,
+    "balanced_accuracy": 0.9966666666666666,
+    "auc_roc": 1.0,
+    "tpr_at_fpr10": 1.0,
+    "precision": 1.0,
+    "recall": 0.9933333333333333,
+    "f1": 0.9966555183946488
+  }
+}

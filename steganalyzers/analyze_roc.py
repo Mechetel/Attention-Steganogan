@@ -59,11 +59,11 @@ CONFIG = {
     "dataset":    "steganogan",
 
     # ── Network ───────────────────────────────────────────────────────────────
-    # "network":      "XuNet",
+    "network":      "XuNet",
     # "network":      "YeNet",
     # "network":      "YedroudjNet",
     # "network":      "SRNet",
-    "network":      "EfficientNetSteg",
+    # "network":      "EfficientNetSteg",
 
     # Network hyper-params (must match checkpoint)
     "srm_trainable": False,
@@ -75,19 +75,20 @@ CONFIG = {
     "freeze_backbone": False,
 
     # ── Checkpoint ────────────────────────────────────────────────────────────
+    # SteganoGAN v3 runs — uncomment the network you set above.
     "checkpoint": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs_steganogan_v2/efficientnetsteg/"
-        # "xunet_1782066963/epoch0010.pt"
-        # "yenet_1782067213/epoch0010.pt"
-        # "yedroudjnet_1782067933/epoch0010.pt"
-        # "srnet_1782067443/epoch0010.pt"
-        "efficientnetsteg_1782068192/epoch0009.pt"
+        "Attention-Steganogan/steganalyzers/runs_steganogan_v3/"
+        "xunet/xunet_1782569616/epoch0010.pt"
+        # "yenet/yenet_1782569837/epoch0010.pt"
+        # "yedroudjnet/yedroudjnet_1782570450/epoch0010.pt"
+        # "srnet/srnet_1782570047/epoch0010.pt"
+        # "efficientnetsteg/efficientnetsteg_1782570683/epoch0010.pt"
     ),
 
     # ── Data ─────────────────────────────────────────────────────────────────
     # ALASKA2 default: "/Users/dmitryhoma/Projects/datasets/alaska2-image-steganalysis"
-    "data_root":  "/Users/dmitryhoma/Projects/datasets/steganogan-dataset-v2",
+    "data_root":  "/Users/dmitryhoma/Projects/datasets/steganogan-dataset-v3",
     # ALASKA2: ["JMiPOD", "JUNIWARD", "UERD"]
     # SteganoGAN: ["basic", "dense", "residual"]
     "stego_algs": ["basic", "dense", "residual"],
@@ -98,14 +99,15 @@ CONFIG = {
     "max_stego":  500,
 
     # ── Output ────────────────────────────────────────────────────────────────
+    # Write roc_results.json / roc_curve.png next to the checkpoint's run dir.
     "output_dir": (
         "/Users/dmitryhoma/Projects/phd_dissertation/state_3/"
-        "Attention-Steganogan/steganalyzers/runs_steganogan_v2/efficientnetsteg/"
-        # "xunet_1782066963"
-        # "yenet_1782067213"
-        # "yedroudjnet_1782067933"
-        # "srnet_1782067443"
-        "efficientnetsteg_1782068192"
+        "Attention-Steganogan/steganalyzers/runs_steganogan_v3/"
+        "xunet/xunet_1782569616"
+        # "yenet/yenet_1782569837"
+        # "yedroudjnet/yedroudjnet_1782570450"
+        # "srnet/srnet_1782570047"
+        # "efficientnetsteg/efficientnetsteg_1782570683"
     ),
 }
 

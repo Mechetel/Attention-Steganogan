@@ -1,0 +1,15 @@
+{
+  "network": "yedroudjnet",
+  "checkpoint": "steganalyzers/runs_steganogan_v3/yedroudjnet/yedroudjnet_1782570450/best_epoch0010.pt",
+  "split": "test",
+  "num_samples": 900,
+  "metrics": {
+    "accuracy": 0.9888888888888889,
+    "balanced_accuracy": 0.9888888888888889,
+    "auc_roc": 0.999679012345679,
+    "tpr_at_fpr10": 1.0,
+    "precision": 0.9845814977973568,
+    "recall": 0.9933333333333333,
+    "f1": 0.9889380530973451
+  }
+}

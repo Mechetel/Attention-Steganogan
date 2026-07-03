@@ -4,6 +4,10 @@
 # ===================================================================================
 # Summary — AUC-ROC
 # ===================================================================================
+# NOTE: the numbers below are from the OLD runs_steganogan_v2 checkpoints and are
+# kept only for reference. Re-run this script with the runs_steganogan_v3
+# checkpoints (configured below) to regenerate the table.
+# -----------------------------------------------------------------------------------
 # Steganalyzer                 SteganoGAN-Dense        Edge-UNet           Edge-ASPP
 # -----------------------------------------------------------------------------------
 # XuNet                             0.3534              0.5534              0.4772
@@ -67,32 +71,32 @@ STEGO_METHODS = {
     "Edge-ASPP":        "edge-aspp",
 }
 
-RUNS_DIR = os.path.join(_HERE, "runs_steganogan_v2")
+RUNS_DIR = os.path.join(_HERE, "runs_steganogan_v3")
 
 STEGANALYZERS = {
     "XuNet": {
         "network":    "XuNet",
-        "checkpoint": os.path.join(RUNS_DIR, "xunet/xunet_1782066963/epoch0010.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "xunet/xunet_1782569616/epoch0010.pt"),
         "params":     {},
     },
     "YeNet": {
         "network":    "YeNet",
-        "checkpoint": os.path.join(RUNS_DIR, "yenet/yenet_1782067213/epoch0010.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "yenet/yenet_1782569837/epoch0010.pt"),
         "params":     {"srm_trainable": False, "tlu_threshold": 3.0},
     },
     "YedroudjNet": {
         "network":    "YedroudjNet",
-        "checkpoint": os.path.join(RUNS_DIR, "yedroudjnet/yedroudjnet_1782067933/epoch0010.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "yedroudjnet/yedroudjnet_1782570450/epoch0010.pt"),
         "params":     {"abs_layer": True, "clamp_val": 3.0},
     },
     "SRNet": {
         "network":    "SRNet",
-        "checkpoint": os.path.join(RUNS_DIR, "srnet/srnet_1782067443/epoch0010.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "srnet/srnet_1782570047/epoch0010.pt"),
         "params":     {},
     },
     "EfficientNetSteg": {
         "network":    "EfficientNetSteg",
-        "checkpoint": os.path.join(RUNS_DIR, "efficientnetsteg/efficientnetsteg_1782068192/epoch0009.pt"),
+        "checkpoint": os.path.join(RUNS_DIR, "efficientnetsteg/efficientnetsteg_1782570683/epoch0010.pt"),
         "params":     {"freeze_backbone": False, "dropout": 0.4},
     },
 }

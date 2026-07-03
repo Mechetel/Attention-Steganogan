@@ -57,7 +57,7 @@ CONFIG: Dict[str, Any] = {
 
     # ── Network ───────────────────────────────────────────────────────────────
     # Choices: xunet+ | yenet+ | srnet+ | yedroudjnet+ | zhunet- | siastegnet- | efficientnetsteg+
-    "network":      "efficientnetsteg",    # must match the checkpoint
+    "network":      "yenet",    # must match the checkpoint
 
     # Network-specific hyper-parameters (only needed if building from scratch)
     "srm_trainable": True,
@@ -70,7 +70,7 @@ CONFIG: Dict[str, Any] = {
     # ── Checkpoint ────────────────────────────────────────────────────────────
     # Path to a .pt checkpoint file produced by train.py.
     # Set to None to evaluate a randomly initialised model (sanity check).
-    "checkpoint":   "steganalyzers/runs_steganogan_v2/efficientnetsteg/efficientnetsteg_1782068192/epoch0009.pt",       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
+    "checkpoint":   "steganalyzers/runs_steganogan_v3/yenet/yenet_1782569837/epoch0010.pt",       # e.g. "steganalyzers/runs/srnet_1234/best_epoch0032.pt"
 
     # ── Evaluation split ──────────────────────────────────────────────────────
     "split":        "test",     # "test" | "val"
@@ -91,7 +91,7 @@ CONFIG: Dict[str, Any] = {
     "test_frac":    0.1,
 
     # ── Output ────────────────────────────────────────────────────────────────
-    "output_dir":   'steganalyzers/runs_steganogan_v2/efficientnetsteg/efficientnetsteg_1782068192',       # if set, write test_results.json here
+    "output_dir":   'steganalyzers/runs_steganogan_v3/yenet/yenet_1782569837',       # if set, write test_results.json here
     "verbose":      True,
 }
 

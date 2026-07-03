@@ -25,28 +25,28 @@ import numpy as np
 RUNS: List[Tuple[str, str]] = [
     # (path_to_roc_results.json, display_label)
     (
-        "steganalyzers/runs_steganogan_v2/xunet/xunet_1782066963/roc_results.json",
+        "steganalyzers/runs_steganogan_v3/xunet/xunet_1782569616/roc_results.json",
         "XuNet",
     ),
     (
-        "steganalyzers/runs_steganogan_v2/yenet/yenet_1782067213/roc_results.json",
+        "steganalyzers/runs_steganogan_v3/yenet/yenet_1782569837/roc_results.json",
         "YeNet",
     ),
     (
-        "steganalyzers/runs_steganogan_v2/yedroudjnet/yedroudjnet_1782067933/roc_results.json",
+        "steganalyzers/runs_steganogan_v3/yedroudjnet/yedroudjnet_1782570450/roc_results.json",
         "YedroudjNet",
     ),
     (
-        "steganalyzers/runs_steganogan_v2/srnet/srnet_1782067443/roc_results.json",
+        "steganalyzers/runs_steganogan_v3/srnet/srnet_1782570047/roc_results.json",
         "SRNet",
     ),
     (
-        "steganalyzers/runs_steganogan_v2/efficientnetsteg/efficientnetsteg_1782068192/roc_results.json",
+        "steganalyzers/runs_steganogan_v3/efficientnetsteg/efficientnetsteg_1782570683/roc_results.json",
         "EfficientNetSteg",
     ),
 ]
 
-OUTPUT_PATH = "steganalyzers/runs_steganogan_v2/roc_comparison.png"
+OUTPUT_PATH = "steganalyzers/runs_steganogan_v3/roc_comparison.png"
 
 # ── Colours per model (extend if you add more) ────────────────────────────────
 
@@ -103,7 +103,7 @@ def main() -> None:
 
     ax.set_xlabel("False Positive Rate", fontsize=13)
     ax.set_ylabel("True Positive Rate", fontsize=13)
-    ax.set_title("ROC Curve Comparison — SteganoGAN V2", fontsize=14)
+    ax.set_title("ROC Curve Comparison — SteganoGAN V3", fontsize=14)
     ax.legend(fontsize=10, loc="lower right")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1.02)
