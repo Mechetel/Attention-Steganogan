@@ -1,0 +1,72 @@
+{
+  "XuNet": {
+    "SteganoGAN-Dense": {
+      "detection_accuracy_pa": 0.98,
+      "mmd": 0.9919166694268468
+    },
+    "Edge-UNet": {
+      "detection_accuracy_pa": 0.6345000000000001,
+      "mmd": 0.25053657666783774
+    },
+    "Edge-ASPP": {
+      "detection_accuracy_pa": 0.996,
+      "mmd": 0.9996559395577382
+    }
+  },
+  "YeNet": {
+    "SteganoGAN-Dense": {
+      "detection_accuracy_pa": 0.9825,
+      "mmd": 0.9920555453424637
+    },
+    "Edge-UNet": {
+      "detection_accuracy_pa": 0.971,
+      "mmd": 0.9846914929635622
+    },
+    "Edge-ASPP": {
+      "detection_accuracy_pa": 0.972,
+      "mmd": 0.9849218173494357
+    }
+  },
+  "YedroudjNet": {
+    "SteganoGAN-Dense": {
+      "detection_accuracy_pa": 0.9595,
+      "mmd": 0.9758711746613332
+    },
+    "Edge-UNet": {
+      "detection_accuracy_pa": 0.9655,
+      "mmd": 0.980535275867582
+    },
+    "Edge-ASPP": {
+      "detection_accuracy_pa": 0.9265,
+      "mmd": 0.9352433479453929
+    }
+  },
+  "SRNet": {
+    "SteganoGAN-Dense": {
+      "detection_accuracy_pa": 0.99,
+      "mmd": 0.9949382837035418
+    },
+    "Edge-UNet": {
+      "detection_accuracy_pa": 0.9945,
+      "mmd": 0.9972709597059223
+    },
+    "Edge-ASPP": {
+      "detection_accuracy_pa": 0.989,
+      "mmd": 0.9936260398463175
+    }
+  },
+  "EfficientNetSteg": {
+    "SteganoGAN-Dense": {
+      "detection_accuracy_pa": 0.921,
+      "mmd": 0.9386996705619934
+    },
+    "Edge-UNet": {
+      "detection_accuracy_pa": 0.8340000000000001,
+      "mmd": 0.7835127381373758
+    },
+    "Edge-ASPP": {
+      "detection_accuracy_pa": 0.659,
+      "mmd": 0.37764454831251243
+    }
+  }
+}

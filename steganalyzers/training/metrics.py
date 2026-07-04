@@ -14,6 +14,14 @@ tpr_at_fpr        : True Positive Rate at a fixed False Positive Rate
 precision         : TP / (TP + FP)
 recall            : TP / (TP + FN)
 f1                : harmonic mean of precision and recall
+detection_accuracy_pa : P_A = 1 - P_E, threshold-optimal detection accuracy,
+              where P_E = min over decision threshold of (P_FA + P_MD) / 2
+              (Jin et al., "Feature Selection of the Rich Model Based on the
+              Correlation of Feature Components", Security and Communication
+              Networks, 2021)
+mmd               : Maximum Mean Discrepancy (RBF kernel) between the
+              cover- and stego-score distributions — a classifier-threshold
+              independent separability measure (Jin et al., 2021)
 """
 
 from typing import Dict, Optional
@@ -41,7 +49,8 @@ class SteganalysisMetrics:
         Returns
         -------
         dict with keys: accuracy, balanced_accuracy, auc_roc,
-                        tpr_at_fpr10, precision, recall, f1
+                        tpr_at_fpr10, precision, recall, f1,
+                        detection_accuracy_pa, mmd
         """
         probs  = torch.softmax(logits.float(), dim=1)[:, 1]   # P(stego)
         preds  = logits.argmax(dim=1)
@@ -56,15 +65,19 @@ class SteganalysisMetrics:
         auc      = SteganalysisMetrics.auc_roc(probs_np, labels_np)
         tpr10    = SteganalysisMetrics.tpr_at_fpr(probs_np, labels_np, fpr_target=0.1)
         prec, rec, f1 = SteganalysisMetrics.precision_recall_f1(preds_np, labels_np)
+        pa       = SteganalysisMetrics.detection_accuracy_pa(probs_np, labels_np)
+        mmd      = SteganalysisMetrics.mmd_rbf(probs_np, labels_np)
 
         return {
-            "accuracy":          acc,
-            "balanced_accuracy": bal_acc,
-            "auc_roc":           auc,
-            "tpr_at_fpr10":      tpr10,
-            "precision":         prec,
-            "recall":            rec,
-            "f1":                f1,
+            "accuracy":              acc,
+            "balanced_accuracy":     bal_acc,
+            "auc_roc":               auc,
+            "tpr_at_fpr10":          tpr10,
+            "precision":             prec,
+            "recall":                rec,
+            "f1":                    f1,
+            "detection_accuracy_pa": pa,
+            "mmd":                   mmd,
         }
 
     # ── Individual metrics ─────────────────────────────────────────────────────
@@ -163,6 +176,89 @@ class SteganalysisMetrics:
             else 0.0
         )
         return float(precision), float(recall), float(f1)
+
+    @staticmethod
+    def detection_accuracy_pa(
+        probs:  np.ndarray,
+        labels: np.ndarray,
+    ) -> float:
+        """
+        Threshold-optimal detection accuracy P_A = 1 - P_E (Jin et al., 2021).
+
+        P_E = min over decision threshold of (P_FA + P_MD) / 2, where P_FA is
+        the false-alarm rate (cover misclassified as stego) and P_MD is the
+        missed-detection rate (stego misclassified as cover). Unlike plain
+        `accuracy` (fixed 0.5 softmax threshold), this sweeps every achievable
+        operating point on the ROC curve and reports the best one — matching
+        how the reference paper reports ensemble-classifier detection accuracy.
+        """
+        order = np.argsort(-probs)
+        sorted_labels = labels[order]
+
+        n_pos = sorted_labels.sum()
+        n_neg = len(sorted_labels) - n_pos
+        if n_pos == 0 or n_neg == 0:
+            return 0.5
+
+        tp = fp = 0
+        min_pe = 1.0
+        for lbl in sorted_labels:
+            if lbl == 1:
+                tp += 1
+            else:
+                fp += 1
+            p_fa = fp / n_neg
+            p_md = 1.0 - (tp / n_pos)
+            pe = 0.5 * (p_fa + p_md)
+            if pe < min_pe:
+                min_pe = pe
+        return float(1.0 - min_pe)
+
+    @staticmethod
+    def mmd_rbf(
+        probs:       np.ndarray,
+        labels:      np.ndarray,
+        max_samples: int = 2000,
+        seed:        int = 0,
+    ) -> float:
+        """
+        Maximum Mean Discrepancy (RBF kernel) between cover- and stego-score
+        distributions (Jin et al., 2021).
+
+        The reference paper computes MMD between cover/stego Rich Model
+        feature distributions as a classifier-independent separability
+        measure; here the classifier's P(stego) score stands in for the
+        feature vector. Kernel bandwidth is set via the median heuristic on
+        the pooled scores. Larger MMD ⇒ more separable cover/stego
+        distributions. Groups are subsampled to `max_samples` each to keep
+        the O(N^2) kernel computation bounded.
+        """
+        cover = probs[labels == 0]
+        stego = probs[labels == 1]
+        if len(cover) == 0 or len(stego) == 0:
+            return 0.0
+
+        rng = np.random.default_rng(seed)
+        if len(cover) > max_samples:
+            cover = rng.choice(cover, size=max_samples, replace=False)
+        if len(stego) > max_samples:
+            stego = rng.choice(stego, size=max_samples, replace=False)
+
+        pooled = np.concatenate([cover, stego])
+        diffs = np.abs(pooled[:, None] - pooled[None, :])
+        nonzero = diffs[diffs > 0]
+        median_dist = np.median(nonzero) if nonzero.size > 0 else 1.0
+        gamma = 1.0 / (2.0 * median_dist ** 2 + 1e-12)
+
+        def _rbf(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+            return np.exp(-gamma * (a[:, None] - b[None, :]) ** 2)
+
+        k_cc = _rbf(cover, cover).mean()
+        k_ss = _rbf(stego, stego).mean()
+        k_cs = _rbf(cover, stego).mean()
+
+        mmd_sq = k_cc - 2.0 * k_cs + k_ss
+        return float(np.sqrt(max(mmd_sq, 0.0)))
 
     # ── Aggregation helpers ────────────────────────────────────────────────────
 
